@@ -3,7 +3,7 @@ My collection of Solidity consepts and example files
 
 
 ### Templates
-* [Smart-contract templates](url)
+* [Smart-contract templates](https://github.com/Viken-Blockchain-Solutions/Solidity-example-files/tree/main/Templates/Smart-contract-template)
 
 
 ### VARIABLE
