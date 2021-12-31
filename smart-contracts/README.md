@@ -38,6 +38,8 @@ require("hardhat-spdx-license-identifier");
 ## use ganache
 ``npx hardhat --network ganache test``
 
+## add docgen
+
 ````bash
 docgen: {
   path: './docs',
