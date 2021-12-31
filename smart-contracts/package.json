@@ -9,7 +9,10 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "tasks": "npx hardhat",
-    "test": "npx hardhat --network ganache test"
+    "ganache": "npx hardhat node",
+    "test_ganache": "npx hardhat --network ganache test",
+    "accounts": "npx hardhat accounts",
+    "tests": "npx hardhat run test"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.3",
