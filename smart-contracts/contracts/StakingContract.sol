@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-
 pragma solidity ^0.8.11;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./testERC20.sol";
-import "hardhat/console.sol";
 
 contract StakingContract is Ownable {
     using SafeMath for uint256;
@@ -62,7 +60,6 @@ contract StakingContract is Ownable {
        for (uint256 s = 0; s < stakeholders.length; s += 1){
            if (_address == stakeholders[s]) return (true, s);
        }
-       console.log("HARDHAT CONSOLE/ register stakeholder: %s", _address);
        return (false, 0);
    }
 

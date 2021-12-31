@@ -21,12 +21,12 @@ describe("Staking contract", function () {
 
   // `beforeEach` will run before each test, re-deploying the contract every
   // time. It receives a callback, which can be async.
-  before(async function () {
+  beforeEach(async function () {
     // Get the ContractFactory and Signers here.
     Contract = await ethers.getContractFactory("StakingContract");
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
 
-    // To deploy our contract, we just have to call Token.deploy() and await
+    // To deploy our contract, we just have to call Contract.deploy() and await
     // for it to be deployed(), which happens once its transaction has been
     // mined.
     instance = await Contract.deploy();
