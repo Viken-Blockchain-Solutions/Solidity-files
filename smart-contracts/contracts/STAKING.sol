@@ -1,29 +1,53 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.7;
+
+pragma solidity ^0.8.11;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./STAKETOKEN.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./testERC20.sol";
 
 contract STAKING is Ownable {
+    using SafeMath for uint256;
 
-     /**
-     * @notice We usually require to know who are all the stakeholders.
-     */
+    testERC20 public stakeToken;
+
+    /**
+    * @notice We usually require to know who are all the stakeholders.
+    */
     address[] internal stakeholders;
 
     /**
     * @notice The stakes for each stakeholder.
     */
-   mapping(address => uint256) internal stakes;
+    mapping(address => uint256) internal stakes;
 
     /**
     * @notice The accumulated rewards for each stakeholder.
     */
-   mapping(address => uint256) internal rewards;
+    mapping(address => uint256) internal rewards;
+
+    event CurrentlyStaking(address stakeToken);
 
     /**
+    * @notice receive function reverts and returns the funds to the sender.
+    */ 
+    receive() external payable {
+        revert("not payable receive");
+    }
+
+    /**
+     * @notice A method to set the token to stake.
+     * @param _tokenAddress The TokenAddress to stake.
+     */
+    function setToken(address _tokenAddress) public onlyOwner {
+        stakeToken = testERC20(_tokenAddress);
+
+        emit CurrentlyStaking(_tokenAddress);
+    }
+
+   /**
     * @notice A method to check if an address is a stakeholder.
     * @param _address The address to verify.
     * @return bool, uint256 Whether the address is a stakeholder,
@@ -42,11 +66,9 @@ contract STAKING is Ownable {
 
    /**
     * @notice A method to add a stakeholder.
-    * @param _stakeholder The stakeholder to add.
     */
-   function addStakeholder(address _stakeholder)
-       public
-   {
+   function addStakeholder() public {
+       address _stakeholder = msg.sender;
        (bool _isStakeholder, ) = isStakeholder(_stakeholder);
        if(!_isStakeholder) stakeholders.push(_stakeholder);
    }
@@ -101,8 +123,9 @@ contract STAKING is Ownable {
    function createStake(uint256 _stake)
        public
    {
-       _burn(msg.sender, _stake);
-       if(stakes[msg.sender] == 0) addStakeholder(msg.sender);
+       if (stakeToken.allowance(msg.sender, address(this)) < _stake) stakeToken.approve(address(this), _stake);
+       stakeToken.burn(_stake);
+       if (stakes[msg.sender] == 0) addStakeholder();
        stakes[msg.sender] = stakes[msg.sender].add(_stake);
    }
 
@@ -115,7 +138,7 @@ contract STAKING is Ownable {
    {
        stakes[msg.sender] = stakes[msg.sender].sub(_stake);
        if(stakes[msg.sender] == 0) removeStakeholder(msg.sender);
-       _mint(msg.sender, _stake);
+       stakeToken.mint(msg.sender, _stake);
    }
   
    /**
@@ -180,6 +203,6 @@ contract STAKING is Ownable {
    {
        uint256 reward = rewards[msg.sender];
        rewards[msg.sender] = 0;
-       _mint(msg.sender, reward);
+       stakeToken.mint(msg.sender, reward);
    }
 }

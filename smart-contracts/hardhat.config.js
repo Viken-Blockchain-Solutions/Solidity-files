@@ -10,7 +10,7 @@ require("hardhat-spdx-license-identifier");
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  solidity: "0.8.7",
+  solidity: "0.8.11",
   docgen: {
     path: './docs',
     clear: true,
