@@ -8,7 +8,8 @@
   "private": false,
   "scripts": {
     "compile": "npx hardhat compile",
-    "tasks": "npx hardhat"
+    "tasks": "npx hardhat",
+    "test": "npx hardhat --network ganache test"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.3",

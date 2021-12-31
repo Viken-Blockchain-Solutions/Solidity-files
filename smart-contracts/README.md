@@ -35,7 +35,8 @@ require("hardhat-docgen");
 require("hardhat-spdx-license-identifier");
 ```
 
-## add docgen
+## use ganache
+``npx hardhat --network ganache test``
 
 ````bash
 docgen: {
