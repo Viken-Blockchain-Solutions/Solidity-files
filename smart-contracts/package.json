@@ -12,16 +12,17 @@
     "localNode": "npx hardhat node",
     "test_local": "npx hardhat --network localhost test",
     "test_ganache": "npx hardhat --network ganache test",
-    "ganache": "ganache-cli -m 'they caution recipe beauty force smile game family obvious include mean fiscal' "
+    "ganache": "ganache-cli -m 'they caution recipe beauty force smile game family obvious include mean test'"
   },
   "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "^2.0.3",
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
     "@nomiclabs/hardhat-etherscan": "^2.1.8",
     "@nomiclabs/hardhat-ganache": "^2.0.1",
     "@nomiclabs/hardhat-solhint": "^2.0.0",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/contracts": "^4.4.1",
     "chai": "^4.3.4",
+    "dotenv": "^10.0.0",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.5.2",
     "hardhat": "^2.8.0",

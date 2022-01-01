@@ -1,10 +1,13 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-solhint");
 require("@nomiclabs/hardhat-ganache");
 require("hardhat-docgen");
 require("hardhat-spdx-license-identifier");
+require("dotenv/config");
 
+const account = process.env.RINKEBY_PRIVATE_KEY;
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -38,11 +41,9 @@ module.exports = {
       defaultBalanceEther: 10,
     },
     rinkeby: {
-      url: "https://eth-rinkeby.alchemyapi.io/v2/YOUR_API_KEY_HERE",
+      url: "https://eth-rinkeby.alchemyapi.io/v2/baOCfB2nKNWKxwdpb4EhZ3xymHF2NDOK",
+      accounts: [account],
     },
-    ropsten: {
-      url: "https://eth-ropsten.alchemyapi.io/v2/YOUR_API_KEY_HERE",
-    }
   },
   paths: {
     sources: "./contracts",
@@ -52,5 +53,9 @@ module.exports = {
   },
   mocha: {
     timeout: 20000
+  },
+  etherscan: {
+    apiKey: "JYX2IFJS6QCPTXUFV9ATJKVUITCT5XYIIX"
   }
 };
+

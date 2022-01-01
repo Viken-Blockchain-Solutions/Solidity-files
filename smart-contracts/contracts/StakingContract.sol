@@ -13,7 +13,7 @@ contract StakingContract is Ownable {
     testERC20 stakeToken;
 
     /**
-    * @notice We usually require to know who are all the stakeholders.
+    * @notice Array of addresses to keep track of all the stakeholders.
     */
     address[] internal stakeholders;
 
@@ -46,6 +46,9 @@ contract StakingContract is Ownable {
         emit CurrentlyStaking(_tokenAddress);
     }
 
+   /**
+    * @notice Returns the name of the token staked.
+    */
     function stakedERC20() public view virtual returns (string memory) {
         return stakeToken.name();
     }
@@ -56,11 +59,7 @@ contract StakingContract is Ownable {
     * @return bool, uint256 Whether the address is a stakeholder,
     * and if so its position in the stakeholders array.
     */
-   function isStakeholder(address _address)
-       public
-       view
-       returns(bool, uint256)
-   {
+   function isStakeholder(address _address) public view returns (bool, uint256) {
        for (uint256 s = 0; s < stakeholders.length; s += 1){
            if (_address == stakeholders[s]) return (true, s);
        }
@@ -80,9 +79,7 @@ contract StakingContract is Ownable {
     * @notice A method to remove a stakeholder.
     * @param _stakeholder The stakeholder to remove.
     */
-   function removeStakeholder(address _stakeholder)
-       public
-   {
+   function removeStakeholder(address _stakeholder) public {
        (bool _isStakeholder, uint256 s) = isStakeholder(_stakeholder);
        if(_isStakeholder){
            stakeholders[s] = stakeholders[stakeholders.length - 1];
