@@ -11,39 +11,58 @@ describe("Staking contract", function () {
 
   // A common pattern is to declare some variables, and assign them in the
   // `before` and `beforeEach` callbacks.
-
-  let Contract;
-  let instance;
+  let testERC20Contract;
+  let stakingContract;
+  let staking;
+  let testERC20;
   let owner;
   let addr1;
+  let addr1Balance;
   let addr2;
-  let addrs;
+  let addr2Balance;
+  let addrs;  
 
-  // `beforeEach` will run before each test, re-deploying the contract every
-  // time. It receives a callback, which can be async.
-  beforeEach(async function () {
+  before(async function () {
     // Get the ContractFactory and Signers here.
-    Contract = await ethers.getContractFactory("StakingContract");
+    testERC20Contract = await ethers.getContractFactory("testERC20");
+    stakingContract = await ethers.getContractFactory("StakingContract");
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
 
-    // To deploy our contract, we just have to call Contract.deploy() and await
-    // for it to be deployed(), which happens once its transaction has been
-    // mined.
-    instance = await Contract.deploy();
-  });
-  // You can nest describe calls to create subsections.
-  describe("Deployment", function () {
-    // `it` is another Mocha function. This is the one you use to define your
-    // tests. It receives the test name, and a callback function.
-    // If the callback function is async, Mocha will `await` it.
-    it("Should set the right owner", async function () {
-      // Expect receives a value, and wraps it in an Assertion object. These
-      // objects have a lot of utility methods to assert values.
+    staking = await stakingContract.deploy();
+    testERC20 = await testERC20Contract.deploy();
 
-      // This test expects the owner variable stored in the contract to be equal
-      // to our Signer's owner.
-      expect(await instance.owner()).to.equal(owner.address);
+    // Transfer 50 tokens from owner to addr1
+    await testERC20.transfer(addr1.address, 5000);
+    await testERC20.transfer(addr2.address, 5000);
+    addr1Balance = await testERC20.balanceOf(addr1.address);
+    addr2Balance = await testERC20.balanceOf(addr2.address);
+  });
+
+  describe("Deployment", function () {
+    it("Should set the right owner of staking contract", async function () {
+      expect(await staking.owner()).to.equal(owner.address);
+    });
+    it("Should have transfered tokens to accounts for testing", async function () {
+      expect(addr1Balance).to.equal(5000);
+      expect(addr2Balance).to.equal(5000);
     });
   });
+
+  describe("Contract Administration", function () {
+    it("Should let the owner, set the staking token", async function () {
+      await staking.setToken(testERC20.address);
+      const name = await testERC20.name();
+      const tokenName = await staking.stakedERC20();
+      expect(tokenName).to.equal(name);
+    });
+  });
+
+  describe("Stakeholders and staking", function () {
+    before(async function () {
+      await staking.setToken(testERC20.address);
+      const tokenName = await staking.stakedERC20();
+      console.log("Staked token: %d", tokenName);
+    })
+  })
 
 })

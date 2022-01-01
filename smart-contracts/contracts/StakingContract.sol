@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.11;
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,7 +10,7 @@ import "./testERC20.sol";
 contract StakingContract is Ownable {
     using SafeMath for uint256;
 
-    testERC20 public stakeToken;
+    testERC20 stakeToken;
 
     /**
     * @notice We usually require to know who are all the stakeholders.
@@ -40,10 +40,14 @@ contract StakingContract is Ownable {
      * @notice A method to set the token to stake.
      * @param _tokenAddress The TokenAddress to stake.
      */
-    function setToken(address _tokenAddress) public onlyOwner {
+    function setToken(address _tokenAddress) external onlyOwner {
         stakeToken = testERC20(_tokenAddress);
 
         emit CurrentlyStaking(_tokenAddress);
+    }
+
+    function stakedERC20() public view virtual returns (string memory) {
+        return stakeToken.name();
     }
 
    /**
