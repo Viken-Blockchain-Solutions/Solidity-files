@@ -5,16 +5,15 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./SafeERC20.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
 
 /** 
  * @notice This contract with let an user deposit funds into a Vault with a given lockperiod.
  *          After the lockperiod, the user can withdraw the funds and the accumulated rewards 
  *          back to their wallet.
  */
-contract StakingContract is Ownable {
+contract StakingContract is Context, Ownable {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
 
     IERC20 public stakeToken;
 
@@ -44,19 +43,19 @@ contract StakingContract is Ownable {
      * @notice receive function reverts and returns the funds to the sender.
      */ 
     receive() external payable {
+        emit ReceiveReverted(msg.value);
         revert("not payable receive");
 
-        emit ReceiveReverted(msg.value);
     }
 
     /**
-     * @notice Authorizes this StakingContract to spend the msg.senders token (ERC20).
+     * @notice Authorizes this StakingContract to spend the _msg.senders token (ERC20).
      * @param _erc20Address Address of an ERC20 used as stakingToken.
      */
     function approveToSpendToken(address _erc20Address) external {
         IERC20 erc20 = IERC20(_erc20Address);
         uint256 max = 2**256 - 1;
-        erc20.safeApprove(address(this), max);
+        erc20.approve(address(this), max);
     }
 
     /**
@@ -80,10 +79,6 @@ contract StakingContract is Ownable {
         uint256 amount = _stake;
         _stake = 0;
         
-        if (stakeToken.allowance(address(msg.sender), address(this)) < amount) {
-            (stakeToken).safeApprove(address(this), amount);
-        } revert("Not authorized");
-        
         VaultsMapping[msg.sender] = Vault(
             true,
             address(stakeToken),
@@ -91,12 +86,9 @@ contract StakingContract is Ownable {
             0
         );
 
-        require(address(stakeToken).safeTranferFrom(
-            stakeToken,
-            address(msg.sender), 
-            address(this), 
-            amount
-            ), "AddToVault failed"
+        require(
+            stakeToken.transferFrom(address(msg.sender), address(this), amount),
+            "AddToVault failed"
         );
 
         emit AddedToVault(amount, msg.sender);

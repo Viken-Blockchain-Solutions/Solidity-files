@@ -11,7 +11,7 @@
     "tasks": "npx hardhat",
     "localNode": "npx hardhat node",
     "test_local": "npx hardhat --network localhost test",
-    "test_ganache": "npx hardhat --network ganache test",
+    "test": "npx hardhat run test --network ganache",
     "ganache": "ganache-cli -m 'they caution recipe beauty force smile game family obvious include mean test'"
   },
   "devDependencies": {

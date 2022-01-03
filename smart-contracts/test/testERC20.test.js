@@ -100,7 +100,7 @@ describe("Token contract", function () {
 
       // Check balances.
       const finalOwnerBalance = await hardhatToken.balanceOf(owner.address);
-      expect(finalOwnerBalance).to.equal(initialOwnerBalance.toNumber() - 150);
+      expect(finalOwnerBalance).to.equal(initialOwnerBalance - 150);
       
       const addr1Balance = await hardhatToken.balanceOf(addr1.address);
       expect(addr1Balance).to.equal(100);
