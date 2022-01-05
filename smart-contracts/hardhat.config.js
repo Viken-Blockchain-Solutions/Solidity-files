@@ -8,6 +8,8 @@ require("hardhat-spdx-license-identifier");
 require("dotenv/config");
 
 const account = process.env.RINKEBY_PRIVATE_KEY;
+const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
+const alchemyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -41,7 +43,7 @@ module.exports = {
       defaultBalanceEther: 10,
     },
     rinkeby: {
-      url: "https://eth-rinkeby.alchemyapi.io/v2/baOCfB2nKNWKxwdpb4EhZ3xymHF2NDOK",
+      url: `https://eth-rinkeby.alchemyapi.io/v2/${alchemyApiKey}`,
       accounts: [account],
     },
   },
@@ -55,7 +57,7 @@ module.exports = {
     timeout: 20000
   },
   etherscan: {
-    apiKey: "JYX2IFJS6QCPTXUFV9ATJKVUITCT5XYIIX"
+    apiKey: `${etherScanApiKey}`,
   }
 };
 
