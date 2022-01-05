@@ -16,15 +16,15 @@ contract Structs {
 
    /** We can use a struct as state variables as shown below */
    Car public car;   // a variable.
-   Car[] public cars // an array of cars.
-   mapping(address => Car[]) public carsByOwner // an mapping contain an array of cars ByOwner
+   Car[] public cars; // an array of cars.
+   mapping(address => Car[]) public carsByOwner; // an mapping contain an array of cars ByOwner
 
    /**
    * @notice setExamples shows different ways we can initialise a struct.
    */
    function setExamples() external {
       // The standard way.
-      Car memory mercedes-benz = Car( // memory = exists only inside of the function. 
+      Car memory mercedesBenz = Car( // memory = exists only inside of the function. 
          "E190",     // model
          1996,       // year
          msg.sender, // owner
@@ -36,7 +36,7 @@ contract Structs {
          year: 2010,                   // in an object, the order is not relevant
          model: "360 Modena",
          inGarage: false,
-         owner: msg.sender,
+         owner: msg.sender
       });
 
       // With only default values
@@ -48,19 +48,19 @@ contract Structs {
       
 
       // Because of "memory", we need to add the stucts to a statevariable 
-      cars.push(mercedes-benz);
+      cars.push(mercedesBenz);
       cars.push(ferrari);
       cars.push(tesla);
 
-      cars.push(Car(1999, "Toyota", msg.sender, false));
+      cars.push(Car("Toyota", 1999, msg.sender, false));
    }
 
    /**
    * @notice getExamples shows different ways we can get info from a struct.
    */
-   function GetExamples() external returns (string, uint256, address, bool) {
+   function GetExamples() external view returns (string memory, uint256, address, bool) {
       Car memory _car = cars[0];
-      return (_car.model, _car.year, _car.owner _car.inGarage);
+      return (_car.model, _car.year, _car.owner, _car.inGarage);
    }
 
    /**
@@ -76,7 +76,7 @@ contract Structs {
    */
    function deleteExamples() external {
       Car storage _c = cars[1];
-      delete _c.owner[1];
+      delete _c.owner;
 
       delete cars[1];
    }
