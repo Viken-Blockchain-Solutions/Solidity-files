@@ -12,57 +12,60 @@ describe("Staking contract", function () {
   // A common pattern is to declare some variables, and assign them in the
   // `before` and `beforeEach` callbacks.
   let testERC20Contract;
-  let stakingContract;
   let staking;
   let testERC20;
   let owner;
-  let addr1;
-  let addr1Balance;
-  let addr2;
-  let addr2Balance;
-  let addrs;  
+  let user1;
+  let user1Balance;
+  let user2;
+  let user2Balance; 
 
   before(async function () {
     // Get the ContractFactory and Signers here.
+    [owner, user1, user2] = await ethers.getSigners();
+    
     testERC20Contract = await ethers.getContractFactory("testERC20");
-    stakingContract = await ethers.getContractFactory("StakingContract");
-    [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+    Contract = await ethers.getContractFactory("StakingContract");
 
-    staking = await stakingContract.deploy();
+    staking = await Contract.deploy();
     testERC20 = await testERC20Contract.deploy();
 
-    // Transfer 50 tokens from owner to addr1
-    await testERC20.transfer(addr1.address, 5000);
-    await testERC20.transfer(addr2.address, 5000);
-    addr1Balance = await testERC20.balanceOf(addr1.address);
-    addr2Balance = await testERC20.balanceOf(addr2.address);
+    // Transfer 50 tokens from owner to user1
+    await testERC20.transfer(user1.address, 5000);
+    await testERC20.transfer(user2.address, 5000);
+    user1Balance = await testERC20.balanceOf(user1.address);
+    user2Balance = await testERC20.balanceOf(user2.address);
   });
 
   describe("Deployment", function () {
+
     it("Should set the right owner of staking contract", async function () {
       expect(await staking.owner()).to.equal(owner.address);
     });
-    it("Should have transfered tokens to accounts for testing", async function () {
-      expect(addr1Balance).to.equal(5000);
-      expect(addr2Balance).to.equal(5000);
+    it("Should be 5000 test tokens on user1 and user2", async function () {
+      expect(user1Balance).to.equal(5000);
+      expect(user2Balance).to.equal(5000);
     });
   });
 
   describe("Contract Administration", function () {
-    it("Should let the owner, set the staking token", async function () {
+    it("Should let the owner, set a staking token", async function () {
       await staking.setToken(testERC20.address);
       const name = await testERC20.name();
-      const tokenName = await staking.stakedERC20();
-      expect(tokenName).to.equal(name);
+      expect("testERC20").to.equal(name);
     });
   });
 
-  describe("Stakeholders and staking", function () {
+  describe("Staking & stakeholders", function () {
     before(async function () {
       await staking.setToken(testERC20.address);
-      const tokenName = await staking.stakedERC20();
-      console.log("Staked token: %d", tokenName);
-    })
-  })
+      testERC20.connect(user1).approve(owner.address, 1000);
+    });
 
+    it("Should let user1 stake 100 tokens", async function () {
+      expect(
+        await staking.connect(user1).addToVault(1000))
+        .to.emit(staking, "StakingToken");
+    });
+  });
 })
