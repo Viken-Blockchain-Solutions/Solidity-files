@@ -60,10 +60,18 @@ describe("Staking contract", function () {
       await testERC20.connect(user1).approve(staking.address, 1000);
     });
 
-    it("Should let user1 stake 100 tokens", async function () {
+    it("Should let user1 stake 1000 tokens", async function () {
       expect(
         await staking.connect(user1).addStake(1000))
         .to.emit(staking, "StakedInVault");
+    });
+    it("Should let user2 stake 50 tokens", async function () {
+      await testERC20.connect(user2).approve(staking.address, 50);
+
+      expect(
+        await staking.connect(user2).addStake(50))
+        .to.emit(staking, "StakedInVault")
+        .withArgs(50, user2.address);
     });
   });
 })

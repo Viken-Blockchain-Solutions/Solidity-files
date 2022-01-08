@@ -23,6 +23,20 @@ contract StakingContract is Context, Ownable {
         Unstaked
     }
 
+    /**
+     * @notice Vault to hold the stakeholder data.
+     * @param isStaking Bool.
+     * @param tokenAddress Address of staked ERC20.
+     * @param staked The amount of this stakeholder id.   
+     * @param reward The reward amount of this stakeholder id.   
+     */
+    struct Vault {
+        Status status;
+        address tokenAddress;
+        uint256 amount;
+        uint256 reward;
+    }
+    
     Status public status;
 
     ERC20 public stakeToken;
@@ -37,19 +51,6 @@ contract StakingContract is Context, Ownable {
 
     event ReceiveReverted(uint256 value);
 
-    /**
-     * @notice Vault to hold the stakeholder data.
-     * @param isStaking Bool.
-     * @param tokenAddress Address of staked ERC20.
-     * @param staked The amount of this stakeholder id.   
-     * @param reward The reward amount of this stakeholder id.   
-     */
-    struct Vault {
-        Status status;
-        address tokenAddress;
-        uint256 amount;
-        uint256 reward;
-    }
 
 
     constructor(address _tokenAddress) {
