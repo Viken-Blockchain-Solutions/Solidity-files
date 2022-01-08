@@ -3,25 +3,37 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 
 /** 
- * @notice This contract with let an user deposit funds into a Vault with a given lockperiod.
- *          After the lockperiod, the user can withdraw the funds and the accumulated rewards 
- *          back to their wallet.
+ * @notice This contract with let an user deposit funds into a Staking Vault with a
+ * givenlockperiod. After the lockperiod, the user can withdraw the funds and the 
+ * accumulated rewards back to their wallet.
  */
 contract StakingContract is Context, Ownable {
     using SafeMath for uint256;
 
-    IERC20 public stakeToken;
+    enum Status {
+        None,
+        Staking1,
+        Staking2,
+        Staking3,
+        Unstaked
+    }
 
-    mapping(address => Vault) internal VaultsMapping;
+    Status public status;
 
-    event StakingToken(address stakeToken);
+    ERC20 public stakeToken;
 
-    event AddedToVault(uint256 staked, address stakeholder);
+    mapping(address => Vault) public VaultsMapping;
+
+    event StakingToken(string Name, address stakeToken);
+
+    event StakedInVault(uint256 staked, address stakeholder);
+    
+    event StakeWithdrawn(address stakeholder, uint256 amount);
 
     event ReceiveReverted(uint256 value);
 
@@ -33,12 +45,16 @@ contract StakingContract is Context, Ownable {
      * @param reward The reward amount of this stakeholder id.   
      */
     struct Vault {
-        bool isStaking;
+        Status status;
         address tokenAddress;
         uint256 amount;
         uint256 reward;
     }
 
+
+    constructor(address _tokenAddress) {
+       stakeToken = ERC20(_tokenAddress);
+    } 
     /**
      * @notice receive function reverts and returns the funds to the sender.
      */ 
@@ -49,38 +65,18 @@ contract StakingContract is Context, Ownable {
     }
 
     /**
-     * @notice Authorizes this StakingContract to spend the _msg.senders token (ERC20).
-     * @param _erc20Address Address of an ERC20 used as stakingToken.
-     */
-    function approveToSpendToken(address _erc20Address) external {
-        IERC20 erc20 = IERC20(_erc20Address);
-        uint256 max = 2**256 - 1;
-        erc20.approve(address(this), max);
-    }
-
-    /**
-     * @notice A method to set the token to stake.
-     * @param _tokenAddress The TokenAddress to stake.
-     */
-    function setToken(address _tokenAddress) external onlyOwner {
-        stakeToken = IERC20(_tokenAddress);
-
-        emit StakingToken(_tokenAddress);
-    }
-
-    /**
      * @notice Add stakeholder and stake amount to the vault.
      * @param _stake Amount to be staked.
-     * @dev Checks allowance and calls safeAppprove() if needed.
+     * @dev Will fail if approval is not given.
      */
-    function addToVault(uint256 _stake) external returns (bool) {
+    function addStake(uint256 _stake) external returns (bool) {
         if (_stake <= 0 && msg.sender == address(0)) revert("Zero values.");
         
         uint256 amount = _stake;
         _stake = 0;
         
         VaultsMapping[msg.sender] = Vault(
-            true,
+            status = Status.Staking1,
             address(stakeToken),
             amount,
             0
@@ -91,8 +87,34 @@ contract StakingContract is Context, Ownable {
             "AddToVault failed"
         );
 
-        emit AddedToVault(amount, msg.sender);
+        emit StakedInVault(amount, msg.sender);
 
+        return true;
+    }
+
+    /**
+    * @notice Get the balance of the staking contract..
+    */
+    function getContractBalance() public view returns (uint256) {
+        return stakeToken.balanceOf(address(this));
+    }
+
+
+    /**
+    * @notice Withdraw the staked amount.
+    */
+    function WithdrawStakedAmount() public returns (bool) {
+        uint256 _amount = VaultsMapping[msg.sender].amount;
+        uint256 _reward = VaultsMapping[msg.sender].reward;
+        VaultsMapping[msg.sender].amount = 0;
+        VaultsMapping[msg.sender].status = Status.Unstaked;
+
+        require(stakeToken.transfer(msg.sender, _amount.add(_reward)), 
+            "Withdraw Failed!"
+        );
+
+        emit StakeWithdrawn(msg.sender, _amount);
+        
         return true;
     }
 }

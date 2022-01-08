@@ -27,8 +27,8 @@ describe("Staking contract", function () {
     testERC20Contract = await ethers.getContractFactory("testERC20");
     Contract = await ethers.getContractFactory("StakingContract");
 
-    staking = await Contract.deploy();
     testERC20 = await testERC20Contract.deploy();
+    staking = await Contract.deploy(testERC20.address);
 
     // Transfer 50 tokens from owner to user1
     await testERC20.transfer(user1.address, 5000);
@@ -49,23 +49,21 @@ describe("Staking contract", function () {
   });
 
   describe("Contract Administration", function () {
-    it("Should let the owner, set a staking token", async function () {
-      await staking.setToken(testERC20.address);
+    it("Should habe set the correct staking token", async function () {
       const name = await testERC20.name();
       expect("testERC20").to.equal(name);
     });
   });
 
   describe("Staking & stakeholders", function () {
-    before(async function () {
-      await staking.setToken(testERC20.address);
-      testERC20.connect(user1).approve(owner.address, 1000);
+    beforeEach(async function () {
+      await testERC20.connect(user1).approve(staking.address, 1000);
     });
 
     it("Should let user1 stake 100 tokens", async function () {
       expect(
-        await staking.connect(user1).addToVault(1000))
-        .to.emit(staking, "StakingToken");
+        await staking.connect(user1).addStake(1000))
+        .to.emit(staking, "StakedInVault");
     });
   });
 })
