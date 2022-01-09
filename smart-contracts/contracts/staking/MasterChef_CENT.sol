@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./ERC20/testERC20.sol";
+import "../ERC20/testERC20.sol";
 
 
 
@@ -17,7 +17,7 @@ import "./ERC20/testERC20.sol";
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
-contract MasterChef is Ownable {
+contract MasterChef_CENT is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -228,7 +228,7 @@ contract MasterChef is Ownable {
         if (_amount > erc20Bal) {
             transferSuccess = erc20.transfer(_to, erc20Bal);
         } else {
-            transferSuccess = erc20.transfer(_to, _amount)
+            transferSuccess = erc20.transfer(_to, _amount);
         }
         require(transferSuccess, "Transfer failed");
     }
@@ -249,6 +249,7 @@ contract MasterChef is Ownable {
     function updateEmissionRate(uint256 _erc20PerBlock) public onlyOwner {
         massUpdatePools();
         erc20PerBlock = _erc20PerBlock;
-        UpdateEmissionRate(msg.sennder, erc20PerBlock);
+        
+        emit UpdateEmissionRate(msg.sender, erc20PerBlock);
     }
 }

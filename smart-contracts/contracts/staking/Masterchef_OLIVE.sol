@@ -3,9 +3,10 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./BEP20/interfaces/IBEP20.sol";
-import "./BEP20/lib/SafeBEP20.sol";
-import "./ERC20/testERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "../ERC20/testERC20.sol";
 
 
 // MasterChef is the master of erc20. He can make erc20 and he is a fair guy.
@@ -16,7 +17,7 @@ import "./ERC20/testERC20.sol";
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
 
-contract MasterChef is Ownable, ReentrancyGuard {
+contract MasterChef_OLIVE is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -34,7 +35,7 @@ contract MasterChef is Ownable, ReentrancyGuard {
         uint256 accOlivePerShare;   // Accumulated OLIVE per share, times 1e12. See below.
     }
 
-    OliveToken public olive;
+    testERC20 public olive;
     address public devaddr;
     uint256 public olivePerBlock;
     uint256 public constant BONUS_MULTIPLIER = 1;
@@ -51,11 +52,11 @@ contract MasterChef is Ownable, ReentrancyGuard {
     event UpdateEmissionRate(address indexed user, uint256 olivePerBlock);
 
     constructor(
-        OliveToken _olive,
+        testERC20 _olive,
         address _devaddr,
         uint256 _olivePerBlock,
         uint256 _startBlock
-    ) public {
+    ) {
         olive = _olive;
         devaddr = _devaddr;
         olivePerBlock = _olivePerBlock;
@@ -103,7 +104,7 @@ contract MasterChef is Ownable, ReentrancyGuard {
     }
 
     // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
+    function getMultiplier(uint256 _from, uint256 _to) public pure returns (uint256) {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
     }
 
