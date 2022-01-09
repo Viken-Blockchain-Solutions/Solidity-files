@@ -1,9 +1,11 @@
+require("dotenv/config");
 
 async function main() {
-  const [deployer, devAddr, feeAddr] = await ethers.getSigners();
+  const [deployer] = await ethers.getSigners();
 
-  const erc20PerBlock = 100;
-  
+  const erc20PerBlock = 10;
+  const dev = `${process.env.DEV}`;
+  const fee = `${process.env.FEE}`;
   // UnixTimestamp 
   const startBlock = 1641755541; // Sun Jan 09 2022 20:12:21 GMT+0100 (sentraleuropeisk normaltid)
 
@@ -19,15 +21,15 @@ async function main() {
   const staking = await Staking.deploy(erc20.address);
   const cent = await CENT.deploy(
     erc20.address,
-    devAddr.address,
-    feeAddr.address,    
+    dev,
+    fee,    
     erc20PerBlock,
     startBlock
   );
   
   const olive = await OLIVE.deploy(
     erc20.address,
-    devAddr.address,
+    dev,
     erc20PerBlock,
     startBlock
   );  
@@ -36,8 +38,8 @@ async function main() {
     ----------------------------------------------------------------------------------
     |    Deployment Status  :                                                          
     |       Contracts owner :                          ${deployer.address},
-    |       Address dev     :                          ${devAddr.address},
-    |       Address fee     :                          ${feeAddr.address}
+    |       Address dev     :                          ${dev},
+    |       Address fee     :                          ${fee}
     |
     |    Contract deployed  :
     |       TestERC20       :                          ${erc20.address}
