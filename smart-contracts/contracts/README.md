@@ -36,4 +36,8 @@ Successfully verified contract MasterChef_CENT on Etherscan.
 
 Successfully verified contract testERC20 on Etherscan.
 <https://rinkeby.etherscan.io/address/0x988b05eF8ACce73985Cc59209D642B2d45A159A7#code>
+
+Successfully verified contract MasterChef_OLIVE on Etherscan.
+<https://rinkeby.etherscan.io/address/0x51c1D66db5Db46bA17378ebd12A8CCB50B349e71#code>
+
 ```
