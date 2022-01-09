@@ -29,3 +29,11 @@
 ```
 
 ----------------------------------------------------------------------------------
+
+```text
+Successfully verified contract MasterChef_CENT on Etherscan.
+<https://rinkeby.etherscan.io/address/0xaFb8E37fb4105Ddc3cd3017891370dD41Af0472C#code>
+
+Successfully verified contract testERC20 on Etherscan.
+<https://rinkeby.etherscan.io/address/0x988b05eF8ACce73985Cc59209D642B2d45A159A7#code>
+```
