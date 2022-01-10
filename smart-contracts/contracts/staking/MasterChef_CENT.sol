@@ -4,16 +4,16 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../ERC20/testERC20.sol";
+import "./SafeERC20.sol";
+import "./testERC20.sol";
 
 
 
 
-// MasterChef is the master of erc20. He can make erc20 and he is a fair guy.
+// MasterChef is the master of CENT rewards. He can transfer CENT and he is a fair guy.
 //
 // Note that it's ownable and the owner wields tremendous power. The ownership
-// will be transferred to a governance smart contract once erc20 is sufficiently
+// will be transferred to a governance smart contract once cent is sufficiently
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
@@ -27,10 +27,10 @@ contract MasterChef_CENT is Ownable {
         uint256 amount;         // How many LP tokens the user has provided.
         uint256 rewardDebt;     // Reward debt. See explanation below.
         //
-        // We do some fancy math here. Basically, any point in time, the amount of erc20s
+        // We do some fancy math here. Basically, any point in time, the amount of cents
         // entitled to a user but is pending to be distributed is:
         //
-        //   pending reward = (user.amount * pool.accerc20PerShare) - user.rewardDebt
+        //   pending reward = (user.amount * pool.accTokenPerShare) - user.rewardDebt
         //
         // Whenever a user deposits or withdraws LP tokens to a pool. Here's what happens:
         //   1. The pool's `accTokenPerShare` (and `lastRewardBlock`) gets updated.
@@ -41,23 +41,22 @@ contract MasterChef_CENT is Ownable {
 
     // Info of each pool.
     struct PoolInfo {
-        IERC20 lpToken;           // Address of LP token contract.
-        uint256 allocPoint;       // How many allocation points assigned to this pool. Tokens to distribute per block.
-        uint256 lastRewardBlock;  // Last block number that Tokens distribution occurs.
+        IERC20 lpToken;             // Address of LP token contract.
+        uint256 allocPoint;         // How many allocation points assigned to this pool. Tokens to distribute per block.
+        uint256 lastRewardBlock;    // Last block number that Tokens distribution occurs.
         uint256 accTokenPerShare;   // Accumulated Tokens per share, times 1e12. See below.
-        uint16 depositFeeBP;      // Deposit fee in basis points
+        uint16 dFBP;                // Deposit fee in basis points
     }
 
-    // The erc20 TOKEN!
-    testERC20 public erc20;
-    // Dev address.
-    address public devaddr;
+    // The CENT TOKEN!
+    testERC20 public cent;
+    // dev addresses.
+    address public dev;
+    address private f;
     // erc20 tokens created per block.
-    uint256 public erc20PerBlock;
-    // Bonus muliplier for early erc20 makers.
+    uint256 public centPerBlock;
+    // Bonus muliplier for early cent makers.
     uint256 public constant BONUS_MULTIPLIER = 1;
-    // Deposit Fee address
-    address public feeAddress;
 
     // Info of each pool.
     PoolInfo[] public poolInfo;
@@ -65,26 +64,28 @@ contract MasterChef_CENT is Ownable {
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // The block number when erc20 mining starts.
+    // The block number when cent mining starts.
     uint256 public startBlock;
+
+    error NotValid(uint256 input, uint256 max);
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event SetDevAddress(address indexed user, address indexed newAddress);
-    event UpdateEmissionRate(address indexed user, uint256 erc20PerBlock);
+    event UpdateEmissionRate(address indexed user, uint256 centPerBlock);
 
     constructor(
-        testERC20 _erc20,
-        address _devaddr,
-        address _feeAddress,
-        uint256 _erc20PerBlock,
+        testERC20 _cent,
+        address _dev,
+        address _f,
+        uint256 _centPerBlock,
         uint256 _startBlock
     ) {
-        erc20 = _erc20;
-        devaddr = _devaddr;
-        feeAddress = _feeAddress;
-        erc20PerBlock = _erc20PerBlock;
+        cent = _cent;
+        dev = _dev;
+        f = _f;
+        centPerBlock = _centPerBlock;
         startBlock = _startBlock;
     }
 
@@ -94,8 +95,10 @@ contract MasterChef_CENT is Ownable {
 
     // Add a new lp to the pool. Can only be called by the owner.
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner {
-        require(_depositFeeBP <= 10000, "add: invalid deposit fee basis points");
+    function add(uint256 _allocPoint, IERC20 _lpToken, uint16 _dFBP, bool _withUpdate) public onlyOwner {
+        if (_dFBP > 10000) {
+            revert NotValid(_dFBP, 10000);
+        }
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -106,19 +109,21 @@ contract MasterChef_CENT is Ownable {
             allocPoint: _allocPoint,
             lastRewardBlock: lastRewardBlock,
             accTokenPerShare: 0,
-            depositFeeBP: _depositFeeBP
+            dFBP: _dFBP
         }));
     }
 
-    // Update the given pool's Tokens allocation point and deposit fee. Can only be called by the owner.
-    function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner {
-        require(_depositFeeBP <= 10000, "set: invalid deposit fee basis points");
+    // Update the given pool's Tokens allocation point and dFBP. Can only be called by the owner.
+    function set(uint256 _pid, uint256 _allocPoint, uint16 _dFBP, bool _withUpdate) public onlyOwner {
+        if (_dFBP > 10000) {
+            revert NotValid(_dFBP, 10000);
+        }
         if (_withUpdate) {
             massUpdatePools();
-        }
+        }   
         totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
         poolInfo[_pid].allocPoint = _allocPoint;
-        poolInfo[_pid].depositFeeBP = _depositFeeBP;
+        poolInfo[_pid].dFBP = _dFBP;
     }
 
     // Return reward multiplier over the given _from to _to block.
@@ -134,8 +139,8 @@ contract MasterChef_CENT is Ownable {
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 erc20Reward = multiplier.mul(erc20PerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accTokenPerShare = accTokenPerShare.add(erc20Reward.mul(1e12).div(lpSupply));
+            uint256 centReward = multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            accTokenPerShare = accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
         }
         return user.amount.mul(accTokenPerShare).div(1e12).sub(user.rewardDebt);
     }
@@ -160,10 +165,10 @@ contract MasterChef_CENT is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 erc20Reward = multiplier.mul(erc20PerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        erc20.mint(devaddr, erc20Reward.div(10));
-        erc20.mint(address(this), (erc20Reward - erc20Reward.div(10)));
-        pool.accTokenPerShare = pool.accTokenPerShare.add(erc20Reward.mul(1e12).div(lpSupply));
+        uint256 centReward = multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        cent.transfer(dev, centReward.div(10));
+        cent.transfer(address(this), (centReward - centReward.div(10)));
+        pool.accTokenPerShare = pool.accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
@@ -180,10 +185,10 @@ contract MasterChef_CENT is Ownable {
         }
         if(_amount > 0) {
             pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
-            if(pool.depositFeeBP > 0){
-                uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);
-                pool.lpToken.safeTransfer(feeAddress, depositFee);
-                user.amount = user.amount.add(_amount).sub(depositFee);
+            if(pool.dFBP > 0){
+                uint256 dF = _amount.mul(pool.dFBP).div(10000);
+                pool.lpToken.safeTransfer(f, dF);
+                user.amount = user.amount.add(_amount).sub(dF);
             }else{
                 user.amount = user.amount.add(_amount);
             }
@@ -218,38 +223,34 @@ contract MasterChef_CENT is Ownable {
         user.amount = 0;
         user.rewardDebt = 0;
         pool.lpToken.safeTransfer(address(msg.sender), amount);
+        assert(user.amount == 0 && user.rewardDebt == 0);
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
     // Safe Token transfer function, just in case if rounding error causes pool to not have enough Tokens.
     function safeTokenTransfer(address _to, uint256 _amount) internal {
-        uint256 erc20Bal = erc20.balanceOf(address(this));
+        uint256 centBal = cent.balanceOf(address(this));
         bool transferSuccess = false;
-        if (_amount > erc20Bal) {
-            transferSuccess = erc20.transfer(_to, erc20Bal);
+        if (_amount > centBal) {
+            transferSuccess = cent.transfer(address(_to), centBal);
         } else {
-            transferSuccess = erc20.transfer(_to, _amount);
+            transferSuccess = cent.transfer(address(_to), _amount);
         }
         require(transferSuccess, "Transfer failed");
     }
 
-    // Update dev address by the previous dev.
-    function dev(address _devaddr) public {
-        require(msg.sender == devaddr, "Not Authorized!");
-        devaddr = _devaddr;
-        emit SetDevAddress(msg.sender, _devaddr);
+    // Update dev address by the previous dev address.
+    function devAddress(address _dev) public {
+        require(msg.sender == dev, "Not Authorized!");
+        dev = _dev;
+        emit SetDevAddress(msg.sender, _dev);
     }
 
-    function setFeeAddress(address _feeAddress) public{
-        require(msg.sender == feeAddress, "FORBIDDEN");
-        feeAddress = _feeAddress;
-    }
-
-    //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
-    function updateEmissionRate(uint256 _erc20PerBlock) public onlyOwner {
+    // Update the emission rate of all pools.
+    function updateEmissionRate(uint256 _centPerBlock) public onlyOwner {
         massUpdatePools();
-        erc20PerBlock = _erc20PerBlock;
+        centPerBlock = _centPerBlock;
         
-        emit UpdateEmissionRate(msg.sender, erc20PerBlock);
+        emit UpdateEmissionRate(msg.sender, centPerBlock);
     }
 }
