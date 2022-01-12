@@ -5,125 +5,154 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../ERC20/testERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+/**
+*   Advanced-logic: Pending Reward logic.
+*   The formula we use to calculate the pending reward of each user:
+*   - Pending Reward = (user.amount * pool.accCENTPerShare) - user.rewardDebt
+*
+*   Everytime a user deposits or withdraws to the single-token pool. This happens:
+*   1. The pool's `accTokenPerShare` (and `lastRewardBlock`) gets updated.
+*   2. User receives the pending reward sent to his/her address.
+*   3. User's `amount` gets updated.
+*   4. User's `rewardDebt` gets updated.
+*/
 
-
-
-// MasterChef is the master of CENT rewards. He can transfer CENT and he is a fair guy.
-//
-// Note that it's ownable and the owner wields tremendous power. The ownership
-// will be transferred to a governance smart contract once cent is sufficiently
-// distributed and the community can show to govern itself.
-//
-// Have fun reading it. Hopefully it's bug-free. God bless.
-contract MasterChef_CENT is Ownable {
+contract SingleStaking is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
 
-    // Info of each user.
+    /**
+    * @notice UserInfo Struct with the staking data of each user.
+    * @param amount The amount of CENT a user is staking.
+    * @param rewardDebt Reward debt.
+    */
     struct UserInfo {
-        uint256 amount;         // How many LP tokens the user has provided.
-        uint256 rewardDebt;     // Reward debt. See explanation below.
-        //
-        // We do some fancy math here. Basically, any point in time, the amount of cents
-        // entitled to a user but is pending to be distributed is:
-        //
-        //   pending reward = (user.amount * pool.accTokenPerShare) - user.rewardDebt
-        //
-        // Whenever a user deposits or withdraws LP tokens to a pool. Here's what happens:
-        //   1. The pool's `accTokenPerShare` (and `lastRewardBlock`) gets updated.
-        //   2. User receives the pending reward sent to his/her address.
-        //   3. User's `amount` gets updated.
-        //   4. User's `rewardDebt` gets updated.
+        uint256 amount;   
+        uint256 rewardDebt;
     }
-
-    // Info of each pool.
+        
+    /**
+    * @notice PoolInfo Struct with the staking data of the pool.
+    * @param erc20 Address of the staking token.
+    * @param allocPoint The amount of allocation points assigned to this pool. CENT to distribute *         per block.
+    * @param lastRewardBlock Last block number that CENT distribution occures.
+    * @param accTokenPerShare Accumulated Tokens per share, times 1e12.
+    */
     struct PoolInfo {
-        IERC20 lpToken;             // Address of LP token contract.
-        uint256 allocPoint;         // How many allocation points assigned to this pool. Tokens to distribute per block.
-        uint256 lastRewardBlock;    // Last block number that Tokens distribution occurs.
-        uint256 accTokenPerShare;   // Accumulated Tokens per share, times 1e12. See below.
-        uint16 dFBP;                // Deposit fee in basis points
+        IERC20 lpToken;
+        uint256 allocPoint;
+        uint256 lastRewardBlock;
+        uint256 accTokenPerShare;
     }
-
-    // The CENT TOKEN!
-    testERC20 public cent;
-    // dev addresses.
+    
+    IERC20 public cent;
     address public dev;
-    address private f;
-    // erc20 tokens created per block.
+    address public treasuryAddr;
     uint256 public centPerBlock;
-    // Bonus muliplier for early cent makers.
+    uint256 public totalAllocPoint = 0;
+    uint256 public startBlock;
     uint256 public constant BONUS_MULTIPLIER = 1;
 
-    // Info of each pool.
     PoolInfo[] public poolInfo;
-    // Info of each user that stakes LP tokens.
+
+    mapping(IERC20 => bool) public poolExistence;
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
-    // Total allocation points. Must be the sum of all allocation points in all pools.
-    uint256 public totalAllocPoint = 0;
-    // The block number when cent mining starts.
-    uint256 public startBlock;
 
-    error NotValid(uint256 input, uint256 max);
+    modifier notDuplicated(IERC20 _lpToken) {
+        require(poolExistence[_lpToken] == false, "Not valid");
+        _;
+    }
 
-    event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
-    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    modifier poolExists(uint256 pid) {
+        require(pid < poolInfo.length, "Not valid");
+        _;
+    }
+
+    event Staked(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event SetDevAddress(address indexed user, address indexed newAddress);
+    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event UpdateEmissionRate(address indexed user, uint256 centPerBlock);
 
-    constructor(
-        testERC20 _cent,
-        address _dev,
-        address _f,
-        uint256 _centPerBlock,
-        uint256 _startBlock
-    ) {
+    /**
+    * @param _cent Token contract address.
+    * @param _dev Dev address.
+    * @param _centPerBlock CENT to distribute per block.
+    * @param _startBlock The startblock we want the staking to start.
+    */ 
+    constructor(IERC20 _cent, address _dev, uint256 _centPerBlock, uint256 _startBlock) {
         cent = _cent;
         dev = _dev;
-        f = _f;
         centPerBlock = _centPerBlock;
         startBlock = _startBlock;
     }
 
+    /**
+    * @notice receive (fallback function) If Ether is sendt to this contract,
+    *         the transaction reverts and returns the funds to the sender.
+    */ 
+    receive() external payable {
+        revert("not payable receive");
+    }
+   
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
 
-    // Add a new lp to the pool. Can only be called by the owner.
-    // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint16 _dFBP, bool _withUpdate) public onlyOwner {
-        if (_dFBP > 10000) {
-            revert NotValid(_dFBP, 10000);
-        }
+    function approveContractToSpend() public {
+        require(msg.sender == address(treasuryAddr) || msg.sender == address(this), "Not Auth");
+        uint256 max = 2**256 - 1;
+        cent.safeApprove(address(this), max);
+    }
+
+    /**
+    * @notice Initiate a new pool.
+    * @param _allocPoint Amount of CENT being allocated to this pool.
+    * @param _lpToken Staked token address.
+    * @param _withUpdate Condition to update all pools, true or false.
+    * @dev Can only be called by the owner.
+    */ 
+    function initPool(uint256 _allocPoint, IERC20 _lpToken, bool _withUpdate) 
+        public 
+        onlyOwner
+        notDuplicated(_lpToken) 
+    {
         if (_withUpdate) {
             massUpdatePools();
         }
+
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
+        poolExistence[_lpToken] = true;
+        
         poolInfo.push(PoolInfo({
             lpToken: _lpToken,
             allocPoint: _allocPoint,
             lastRewardBlock: lastRewardBlock,
-            accTokenPerShare: 0,
-            dFBP: _dFBP
+            accTokenPerShare: 0
         }));
-    }
+    }   
 
-    // Update the given pool's Tokens allocation point and dFBP. Can only be called by the owner.
-    function set(uint256 _pid, uint256 _allocPoint, uint16 _dFBP, bool _withUpdate) public onlyOwner {
-        if (_dFBP > 10000) {
-            revert NotValid(_dFBP, 10000);
-        }
+    /**
+    * @notice Update the given pool's CENT allocation amount.
+    * @param _pid Pool id.
+    * @param _newAllocPoint New amount to allocate to the pool. Will replace existing alloc.
+    * @param _withUpdate Condition to update all pools.
+    * @dev  Can only be called by the owner.
+    */ 
+    function updateAllocation(uint256 _pid, uint256 _newAllocPoint, bool _withUpdate)
+        public 
+        onlyOwner 
+        poolExists(_pid) 
+    {
         if (_withUpdate) {
             massUpdatePools();
-        }   
-        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
-        poolInfo[_pid].allocPoint = _allocPoint;
-        poolInfo[_pid].dFBP = _dFBP;
+        }  
+
+        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_newAllocPoint);
+        poolInfo[_pid].allocPoint = _newAllocPoint;
     }
 
     // Return reward multiplier over the given _from to _to block.
@@ -131,8 +160,8 @@ contract MasterChef_CENT is Ownable {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
     }
 
-    // View function to see pending Tokens on frontend.
-    function pendingToken(uint256 _pid, address _user) external view returns (uint256) {
+    // View function to see pending Cent´s on frontend.
+    function pendingCent(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accTokenPerShare = pool.accTokenPerShare;
@@ -165,36 +194,45 @@ contract MasterChef_CENT is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 centReward = multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        cent.transfer(dev, centReward.div(10));
-        cent.transfer(address(this), (centReward - centReward.div(10)));
+        uint256 centReward = 
+            multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+
+        require(cent.allowance(address(treasuryAddr), address(this)) > 2**256 - 1, "Error 1");
+        
+        cent.safeTransferFrom(
+                address(treasuryAddr), 
+                address(dev),
+                centReward.div(10));
+
+        cent.safeTransferFrom(
+                address(treasuryAddr),
+                address(this),
+                centReward.sub(centReward.div(10)));
+
         pool.accTokenPerShare = pool.accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MasterChef for Token allocation.
-    function deposit(uint256 _pid, uint256 _amount) public {
+    /** 
+    * @notice Stake LP tokens to earn rewards.
+    */
+    function stake(uint256 _pid, uint256 _amount) public nonReentrant poolExists(_pid) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
+            uint256 pending = user.amount
+            .mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
             if(pending > 0) {
                 safeTokenTransfer(msg.sender, pending);
             }
         }
         if(_amount > 0) {
             pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
-            if(pool.dFBP > 0){
-                uint256 dF = _amount.mul(pool.dFBP).div(10000);
-                pool.lpToken.safeTransfer(f, dF);
-                user.amount = user.amount.add(_amount).sub(dF);
-            }else{
-                user.amount = user.amount.add(_amount);
-            }
+            user.amount = user.amount.add(_amount);
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
-        emit Deposit(msg.sender, _pid, _amount);
+        emit Staked(msg.sender, _pid, _amount);
     }
 
     // Withdraw LP tokens from MasterChef.
@@ -243,7 +281,6 @@ contract MasterChef_CENT is Ownable {
     function devAddress(address _dev) public {
         require(msg.sender == dev, "Not Authorized!");
         dev = _dev;
-        emit SetDevAddress(msg.sender, _dev);
     }
 
     // Update the emission rate of all pools.
