@@ -37,7 +37,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
     /**
     * @notice PoolInfo Struct with the staking data of the pool.
     * @param erc20 Address of the staking token.
-    * @param allocPoint The amount of allocation points assigned to this pool. CENT to distribute *         per block.
+    * @param allocPoint The amount of allocation points assigned to this pool.
     * @param lastRewardBlock Last block number that CENT distribution occures.
     * @param accTokenPerShare Accumulated Tokens per share, times 1e12.
     */
@@ -48,9 +48,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         uint256 accTokenPerShare;
     }
     
-    IERC20 public cent;
     address public dev;
-    address public treasuryAddr;
     uint256 public centPerBlock;
     uint256 public totalAllocPoint = 0;
     uint256 public startBlock;
@@ -60,33 +58,33 @@ contract SingleStaking is Ownable, ReentrancyGuard {
 
     mapping(IERC20 => bool) public poolExistence;
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
+    
+    error TokenTransferFailed();
 
     modifier notDuplicated(IERC20 _lpToken) {
-        require(poolExistence[_lpToken] == false, "Not valid");
+        require(poolExistence[_lpToken] == false, "already exists");
         _;
     }
 
     modifier poolExists(uint256 pid) {
-        require(pid < poolInfo.length, "Not valid");
+        require(pid < poolInfo.length, "not in list");
         _;
     }
 
-    event Staked(address indexed user, uint256 indexed pid, uint256 amount);
+    event StakedToPool(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event UpdateEmissionRate(address indexed user, uint256 centPerBlock);
+    event PoolInitiated(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount);
 
     /**
-    * @param _cent Token contract address.
     * @param _dev Dev address.
     * @param _centPerBlock CENT to distribute per block.
-    * @param _startBlock The startblock we want the staking to start.
     */ 
-    constructor(IERC20 _cent, address _dev, uint256 _centPerBlock, uint256 _startBlock) {
-        cent = _cent;
+    constructor(address _dev, uint256 _centPerBlock) {
         dev = _dev;
         centPerBlock = _centPerBlock;
-        startBlock = _startBlock;
+        startBlock = block.timestamp;
     }
 
     /**
@@ -101,28 +99,24 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         return poolInfo.length;
     }
 
-    function approveContractToSpend() public {
-        require(msg.sender == address(treasuryAddr) || msg.sender == address(this), "Not Auth");
-        uint256 max = 2**256 - 1;
-        cent.safeApprove(address(this), max);
-    }
-
     /**
-    * @notice Initiate a new pool.
+    * @notice Initiates a new pool. Can only be called by the owner.
     * @param _allocPoint Amount of CENT being allocated to this pool.
-    * @param _lpToken Staked token address.
-    * @param _withUpdate Condition to update all pools, true or false.
-    * @dev Can only be called by the owner.
+    * @param _lpToken Reward token address.
+    * @param _totRewardAmount Amount of tokens to be allocated as Reward.
+    * @dev This is executed in order:
+    * @dev 1. sets the current block.number as lastRewardBlock.
+    * @dev 2. adds the _allocPoint to totalAllocPoint.
+    * @dev 3. creates an entry as true for the pool in poolExistence[].
+    * @dev 4. creates the PoolInfo struct and pushes it to the poolInfo[].
+    * @dev 5. executes a SafeTransferFrom of rewardtokens into this smartcontract.
     */ 
-    function initPool(uint256 _allocPoint, IERC20 _lpToken, bool _withUpdate) 
-        public 
+    function initiatePool(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount) 
+        external
         onlyOwner
-        notDuplicated(_lpToken) 
+        notDuplicated(_lpToken)
     {
-        if (_withUpdate) {
-            massUpdatePools();
-        }
-
+        IERC20 rewardToken = _lpToken;
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
         poolExistence[_lpToken] = true;
@@ -133,6 +127,10 @@ contract SingleStaking is Ownable, ReentrancyGuard {
             lastRewardBlock: lastRewardBlock,
             accTokenPerShare: 0
         }));
+
+        rewardToken.safeTransferFrom(msg.sender, address(this), _totRewardAmount);
+
+        emit PoolInitiated(_allocPoint, _lpToken, _totRewardAmount);
     }   
 
     /**
@@ -196,35 +194,30 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
         uint256 centReward = 
             multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-
-        require(cent.allowance(address(treasuryAddr), address(this)) > 2**256 - 1, "Error 1");
         
-        cent.safeTransferFrom(
-                address(treasuryAddr), 
+        pool.lpToken.safeTransfer(
                 address(dev),
                 centReward.div(10));
-
-        cent.safeTransferFrom(
-                address(treasuryAddr),
-                address(this),
-                centReward.sub(centReward.div(10)));
 
         pool.accTokenPerShare = pool.accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
     /** 
-    * @notice Stake LP tokens to earn rewards.
+    * @notice Stake Cent tokens to earn rewards.
     */
-    function stake(uint256 _pid, uint256 _amount) public nonReentrant poolExists(_pid) {
+    function addStake(uint256 _pid, uint256 _amount) public nonReentrant poolExists(_pid) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
+        
         if (user.amount > 0) {
             uint256 pending = user.amount
-            .mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
+                .mul(pool.accTokenPerShare)
+                    .div(1e12)
+                        .sub(user.rewardDebt);
             if(pending > 0) {
-                safeTokenTransfer(msg.sender, pending);
+                pool.lpToken.safeTransferFrom(address(msg.sender), address(this), pending);
             }
         }
         if(_amount > 0) {
@@ -232,7 +225,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
             user.amount = user.amount.add(_amount);
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
-        emit Staked(msg.sender, _pid, _amount);
+        emit StakedToPool(msg.sender, _pid, _amount);
     }
 
     // Withdraw LP tokens from MasterChef.
@@ -241,10 +234,12 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount);
         updatePool(_pid);
+        /*
         uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
         if(pending > 0) {
             safeTokenTransfer(msg.sender, pending);
         }
+        */
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
@@ -265,17 +260,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
-    // Safe Token transfer function, just in case if rounding error causes pool to not have enough Tokens.
-    function safeTokenTransfer(address _to, uint256 _amount) internal {
-        uint256 centBal = cent.balanceOf(address(this));
-        bool transferSuccess = false;
-        if (_amount > centBal) {
-            transferSuccess = cent.transfer(address(_to), centBal);
-        } else {
-            transferSuccess = cent.transfer(address(_to), _amount);
-        }
-        require(transferSuccess, "Transfer failed");
-    }
+    
 
     // Update dev address by the previous dev address.
     function devAddress(address _dev) public {

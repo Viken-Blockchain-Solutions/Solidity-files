@@ -87,7 +87,6 @@ describe("Token contract", function () {
       expect(await hardhatToken.balanceOf(owner.address)).to.equal(
         initialOwnerBalance
       );
-      console.log(initialOwnerBalance.toString());
     });
 
     
