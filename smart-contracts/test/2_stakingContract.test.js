@@ -120,7 +120,7 @@ describe("Staking contract", function () {
       .to.emit(staking, "StakedToPool")
         .withArgs(user1.address, 0, 500);
       
-      expect(await staking.connect(user1).withdraw(0, 400))
+      expect(await staking.connect(user1).withdrawStake(0, 400))
       .to.emit(staking, "Withdraw")
         .withArgs(user1.address, 0, 400);
       

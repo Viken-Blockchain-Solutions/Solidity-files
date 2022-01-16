@@ -46,20 +46,21 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         uint256 allocPoint;
         uint256 lastRewardBlock;
         uint256 accTokenPerShare;
+        uint256 totCentStakedInPool;
     }
     
     address public dev;
     uint256 public centPerBlock;
     uint256 public totalAllocPoint = 0;
     uint256 public startBlock;
-    uint256 public constant BONUS_MULTIPLIER = 1;
+    uint256 public constant BONUS_MULTIPLIER = 40;
 
     PoolInfo[] public poolInfo;
 
     mapping(IERC20 => bool) public poolExistence;
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
-    
-    error TokenTransferFailed();
+    error NotAuthorized();
+    error TransactionFailed();
 
     modifier notDuplicated(IERC20 _lpToken) {
         require(poolExistence[_lpToken] == false, "already exists");
@@ -76,6 +77,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event UpdateEmissionRate(address indexed user, uint256 centPerBlock);
     event PoolInitiated(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount);
+    event SentPendingRewards(address indexed user, uint256 amount);
 
     /**
     * @param _dev Dev address.
@@ -116,7 +118,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         onlyOwner
         notDuplicated(_lpToken)
     {
-        IERC20 rewardToken = _lpToken;
+        IERC20 lpToken = _lpToken;
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
         poolExistence[_lpToken] = true;
@@ -125,10 +127,11 @@ contract SingleStaking is Ownable, ReentrancyGuard {
             lpToken: _lpToken,
             allocPoint: _allocPoint,
             lastRewardBlock: lastRewardBlock,
-            accTokenPerShare: 0
+            accTokenPerShare: 0,
+            totCentStakedInPool: 0
         }));
 
-        rewardToken.safeTransferFrom(msg.sender, address(this), _totRewardAmount);
+        lpToken.safeTransferFrom(msg.sender, address(this), _totRewardAmount);
 
         emit PoolInitiated(_allocPoint, _lpToken, _totRewardAmount);
     }   
@@ -141,7 +144,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
     * @dev  Can only be called by the owner.
     */ 
     function updateAllocation(uint256 _pid, uint256 _newAllocPoint, bool _withUpdate)
-        public 
+        internal 
         onlyOwner 
         poolExists(_pid) 
     {
@@ -154,12 +157,12 @@ contract SingleStaking is Ownable, ReentrancyGuard {
     }
 
     // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) public pure returns (uint256) {
+    function getMultiplier(uint256 _from, uint256 _to) internal pure returns (uint256) {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
     }
 
     // View function to see pending Cent´s on frontend.
-    function pendingCent(uint256 _pid, address _user) external view returns (uint256) {
+    function pendingCent(uint256 _pid, address _user) public view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accTokenPerShare = pool.accTokenPerShare;
@@ -173,7 +176,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
-    function massUpdatePools() public {
+    function massUpdatePools() internal {
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
             updatePool(pid);
@@ -205,6 +208,8 @@ contract SingleStaking is Ownable, ReentrancyGuard {
 
     /** 
     * @notice Stake Cent tokens to earn rewards.
+    * @param _pid Id of the pool to stake in.
+    * @param _amount amount of tokens to stake.
     */
     function addStake(uint256 _pid, uint256 _amount) public nonReentrant poolExists(_pid) {
         PoolInfo storage pool = poolInfo[_pid];
@@ -217,29 +222,31 @@ contract SingleStaking is Ownable, ReentrancyGuard {
                     .div(1e12)
                         .sub(user.rewardDebt);
             if(pending > 0) {
-                pool.lpToken.safeTransferFrom(address(msg.sender), address(this), pending);
+                _transferFrom(address(pool.lpToken), address(msg.sender), address(this), pending);
             }
         }
         if(_amount > 0) {
-            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
             user.amount = user.amount.add(_amount);
+            require(_transferFrom(address(pool.lpToken), address(msg.sender), address(this), _amount));
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
+        pool.totCentStakedInPool = pool.totCentStakedInPool.add(_amount);
         emit StakedToPool(msg.sender, _pid, _amount);
     }
 
-    // Withdraw LP tokens from MasterChef.
-    function withdraw(uint256 _pid, uint256 _amount) public {
+    // Withdraw LP tokens from Staking contract.
+    function withdrawStake(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount);
         updatePool(_pid);
-        /*
+        
         uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
         if(pending > 0) {
-            safeTokenTransfer(msg.sender, pending);
+            pool.lpToken.safeTransfer(msg.sender, pending);
+            emit SentPendingRewards(msg.sender, pending);
         }
-        */
+        
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
@@ -260,7 +267,10 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
-    
+    function _transferFrom(address _token, address _from, address _to, uint256 _amount) internal returns(bool) {
+        IERC20(_token).safeTransferFrom(_from, _to, _amount);
+        return true;
+    }
 
     // Update dev address by the previous dev address.
     function devAddress(address _dev) public {
