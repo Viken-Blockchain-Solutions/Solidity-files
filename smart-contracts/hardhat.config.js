@@ -43,12 +43,12 @@ module.exports = {
       defaultBalanceEther: 10,
     },
     rinkeby: {
-      url: 'https://eth-rinkeby.alchemyapi.io/v2/baOCfB2nKNWKxwdpb4EhZ3xymHF2NDOK',
+      url: `https://eth-rinkeby.alchemyapi.io/v2/${rinkebyApiKey}`,
       chainId: 4,
       account: [process.env.ACCOUNT_PRIVATE_KEY]
     },
     ropsten: {
-      url: 'https://eth-ropsten.alchemyapi.io/v2/baOCfB2nKNWKxwdpb4EhZ3xymHF2NDOK',
+      url: `https://eth-rinkeby.alchemyapi.io/v2/${ropstenApiKey}`,
       chainId: 3,
       account: [process.env.ACCOUNT_PRIVATE_KEY]
     },

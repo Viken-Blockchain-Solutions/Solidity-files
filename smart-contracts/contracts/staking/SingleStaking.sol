@@ -60,8 +60,14 @@ contract SingleStaking is Ownable, ReentrancyGuard {
     mapping(IERC20 => bool) public poolExistence;
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
     error NotAuthorized();
-    error TransactionFailed();
+    
 
+    modifier isDev() {
+        if (msg.sender != dev) {
+            revert NotAuthorized();
+        }
+        _;
+    }
     modifier notDuplicated(IERC20 _lpToken) {
         require(poolExistence[_lpToken] == false, "already exists");
         _;
@@ -81,11 +87,10 @@ contract SingleStaking is Ownable, ReentrancyGuard {
 
     /**
     * @param _dev Dev address.
-    * @param _centPerBlock CENT to distribute per block.
     */ 
-    constructor(address _dev, uint256 _centPerBlock) {
+    constructor(address _dev) {
         dev = _dev;
-        centPerBlock = _centPerBlock;
+        centPerBlock = 10000000000000000000;
         startBlock = block.timestamp;
     }
 
@@ -272,13 +277,21 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         return true;
     }
 
-    // Update dev address by the previous dev address.
-    function devAddress(address _dev) public {
-        require(msg.sender == dev, "Not Authorized!");
+    /**
+    * @notice Update to a new dev address by the previous dev address.
+    * @param _dev New dev address.
+    * @dev  protected by modifier dev.
+    */
+    function setDevAddress(address _dev) public isDev {
         dev = _dev;
     }
 
-    // Update the emission rate of all pools.
+    
+    /**
+    * @notice Update the emission rate of all pools..
+    * @param _centPerBlock new amount to reward per block.
+    * @dev  protected by modifier onlyOwner.
+    */
     function updateEmissionRate(uint256 _centPerBlock) public onlyOwner {
         massUpdatePools();
         centPerBlock = _centPerBlock;

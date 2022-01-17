@@ -13,8 +13,8 @@
     "test_local": "npx hardhat --network localhost test",
     "test": "npx hardhat run test --network ganache",
     "ganache": "ganache-cli -m 'they caution recipe beauty force smile game family obvious include mean test'",
-    "deploy_local": "npx hardhat run scripts/1_deploy_StakingContracts.js --network localhost",
-    "deploy_rinkeby": "npx hardhat run scripts/1_deploy_StakingContracts.js  --network rinkeby"
+    "deploy_local": "npx hardhat run scripts/1_deploy_to_rinkeby.js --network localhost",
+    "deploy_rinkeby": "npx hardhat run scripts/1_deploy_to_rinkeby.js  --network rinkeby"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
