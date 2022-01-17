@@ -19,10 +19,16 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 *   4. User's `rewardDebt` gets updated.
 */
 
-contract SingleStaking is Ownable, ReentrancyGuard {
+contract SingleStaking is Context, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    address public dev;
+    uint256 public centPerBlock;
+    uint256 public totalAllocPoint = 0;
+    uint256 public startBlock;
+    uint256 public constant BONUS_MULTIPLIER = 40;
+    bool public initialized;
 
     /**
     * @notice UserInfo Struct with the staking data of each user.
@@ -49,21 +55,18 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         uint256 totCentStakedInPool;
     }
     
-    address public dev;
-    uint256 public centPerBlock;
-    uint256 public totalAllocPoint = 0;
-    uint256 public startBlock;
-    uint256 public constant BONUS_MULTIPLIER = 40;
+   
 
     PoolInfo[] public poolInfo;
 
     mapping(IERC20 => bool) public poolExistence;
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
     error NotAuthorized();
+    error OnlyOnce();
     
 
     modifier isDev() {
-        if (msg.sender != dev) {
+        if (_msgSender() != dev) {
             revert NotAuthorized();
         }
         _;
@@ -78,11 +81,17 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         _;
     }
 
+    modifier notInitialized(){
+        if (initialized) revert OnlyOnce();
+        _;
+        initialized = true;
+    }
+
     event StakedToPool(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event UpdateEmissionRate(address indexed user, uint256 centPerBlock);
-    event PoolInitiated(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount);
+    event PoolInitialized(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount);
     event SentPendingRewards(address indexed user, uint256 amount);
 
     /**
@@ -122,6 +131,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         external
         onlyOwner
         notDuplicated(_lpToken)
+        notInitialized
     {
         IERC20 lpToken = _lpToken;
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
@@ -136,9 +146,9 @@ contract SingleStaking is Ownable, ReentrancyGuard {
             totCentStakedInPool: 0
         }));
 
-        lpToken.safeTransferFrom(msg.sender, address(this), _totRewardAmount);
-
-        emit PoolInitiated(_allocPoint, _lpToken, _totRewardAmount);
+        require(_transferFrom(address(lpToken), address(_msgSender()), address(this), _totRewardAmount));
+        initialized = true;
+        emit PoolInitialized(_allocPoint, _lpToken, _totRewardAmount);
     }   
 
     /**
@@ -203,9 +213,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         uint256 centReward = 
             multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
         
-        pool.lpToken.safeTransfer(
-                address(dev),
-                centReward.div(10));
+        pool.lpToken.safeTransfer(address(dev), centReward.div(10));
 
         pool.accTokenPerShare = pool.accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
@@ -218,7 +226,7 @@ contract SingleStaking is Ownable, ReentrancyGuard {
     */
     function addStake(uint256 _pid, uint256 _amount) public nonReentrant poolExists(_pid) {
         PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][msg.sender];
+        UserInfo storage user = userInfo[_pid][_msgSender()];
         updatePool(_pid);
         
         if (user.amount > 0) {
@@ -227,49 +235,49 @@ contract SingleStaking is Ownable, ReentrancyGuard {
                     .div(1e12)
                         .sub(user.rewardDebt);
             if(pending > 0) {
-                _transferFrom(address(pool.lpToken), address(msg.sender), address(this), pending);
+                _transferFrom(address(pool.lpToken), address(_msgSender()), address(this), pending);
             }
         }
         if(_amount > 0) {
             user.amount = user.amount.add(_amount);
-            require(_transferFrom(address(pool.lpToken), address(msg.sender), address(this), _amount));
+            require(_transferFrom(address(pool.lpToken), address(_msgSender()), address(this), _amount));
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
         pool.totCentStakedInPool = pool.totCentStakedInPool.add(_amount);
-        emit StakedToPool(msg.sender, _pid, _amount);
+        emit StakedToPool(_msgSender(), _pid, _amount);
     }
 
     // Withdraw LP tokens from Staking contract.
     function withdrawStake(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][msg.sender];
+        UserInfo storage user = userInfo[_pid][_msgSender()];
         require(user.amount >= _amount);
         updatePool(_pid);
         
         uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
         if(pending > 0) {
-            pool.lpToken.safeTransfer(msg.sender, pending);
-            emit SentPendingRewards(msg.sender, pending);
+            pool.lpToken.safeTransfer(_msgSender(), pending);
+            emit SentPendingRewards(_msgSender(), pending);
         }
         
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
-            pool.lpToken.safeTransfer(address(msg.sender), _amount);
+            pool.lpToken.safeTransfer(address(_msgSender()), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
-        emit Withdraw(msg.sender, _pid, _amount);
+        emit Withdraw(_msgSender(), _pid, _amount);
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
     function emergencyWithdraw(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][msg.sender];
+        UserInfo storage user = userInfo[_pid][_msgSender()];
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
-        pool.lpToken.safeTransfer(address(msg.sender), amount);
+        pool.lpToken.safeTransfer(address(_msgSender()), amount);
         assert(user.amount == 0 && user.rewardDebt == 0);
-        emit EmergencyWithdraw(msg.sender, _pid, amount);
+        emit EmergencyWithdraw(_msgSender(), _pid, amount);
     }
 
     function _transferFrom(address _token, address _from, address _to, uint256 _amount) internal returns(bool) {
@@ -296,6 +304,6 @@ contract SingleStaking is Ownable, ReentrancyGuard {
         massUpdatePools();
         centPerBlock = _centPerBlock;
         
-        emit UpdateEmissionRate(msg.sender, centPerBlock);
+        emit UpdateEmissionRate(_msgSender(), centPerBlock);
     }
 }

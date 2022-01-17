@@ -31,7 +31,7 @@ describe("Staking contract", function () {
     testERC20 = await testERC20Contract.deploy();
 
     // constructor arguments (address _dev, uint256 _centPerBlock) {
-    staking = await Contract.deploy(dev.address, 10);
+    staking = await Contract.deploy(dev.address);
 
     // Transfer 5000 tokens from owner to user1 || user2
     await testERC20.transfer(user1.address, 5000);
