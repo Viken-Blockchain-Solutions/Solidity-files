@@ -38,7 +38,7 @@ https://rinkeby.etherscan.io/address/0x9dCf9350505c8f4AfB00AB00740A23970e75E5FD#
     |       Address dev     :                          0x6d300A0e146143f68F318ED045B80b06B0001639
     |
     |    Contract deployed  :
-    |       SingleStaking   :                          0xA59d84a05Da7b71540a438eFc1391F785b4cC80b
+    |       SingleStaking   :                          0xBE53fAf7E1c39c6D6ce0F528328433f6B302fA88,
     |
     |       testERC20       :                          0x12109Fc5e292533D775A17AFb543fdeF15c86f30
     |
