@@ -48,7 +48,7 @@ module.exports = {
       account: [process.env.ACCOUNT_PRIVATE_KEY]
     },
     ropsten: {
-      url: `https://eth-rinkeby.alchemyapi.io/v2/${ropstenApiKey}`,
+      url: ropstenApiKey,
       chainId: 3,
       account: [process.env.ACCOUNT_PRIVATE_KEY]
     },

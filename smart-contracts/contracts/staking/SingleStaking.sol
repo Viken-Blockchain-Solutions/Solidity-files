@@ -87,9 +87,9 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         initialized = true;
     }
 
-    event StakedToPool(address indexed user, uint256 indexed pid, uint256 amount);
-    event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event StakedToPool(address indexed user, uint256 amount);
+    event EmergencyWithdraw(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
     event UpdateEmissionRate(address indexed user, uint256 centPerBlock);
     event PoolInitialized(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount);
     event SentPendingRewards(address indexed user, uint256 amount);
@@ -97,9 +97,9 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     /**
     * @param _dev Dev address.
     */ 
-    constructor(address _dev) {
+    constructor(address _dev, uint256 _centPerBlock) {
         dev = _dev;
-        centPerBlock = 10000000000000000000;
+        centPerBlock = _centPerBlock;
         startBlock = block.timestamp;
     }
 
@@ -110,7 +110,10 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     receive() external payable {
         revert("not payable receive");
     }
-   
+    function setStartBlock(uint256 _startBlock) public onlyOwner {
+        startBlock = _startBlock;
+    }
+
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
@@ -155,18 +158,13 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     * @notice Update the given pool's CENT allocation amount.
     * @param _pid Pool id.
     * @param _newAllocPoint New amount to allocate to the pool. Will replace existing alloc.
-    * @param _withUpdate Condition to update all pools.
     * @dev  Can only be called by the owner.
     */ 
-    function updateAllocation(uint256 _pid, uint256 _newAllocPoint, bool _withUpdate)
+    function updateAllocation(uint256 _pid, uint256 _newAllocPoint)
         internal 
         onlyOwner 
         poolExists(_pid) 
     {
-        if (_withUpdate) {
-            massUpdatePools();
-        }  
-
         totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_newAllocPoint);
         poolInfo[_pid].allocPoint = _newAllocPoint;
     }
@@ -190,17 +188,10 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         return user.amount.mul(accTokenPerShare).div(1e12).sub(user.rewardDebt);
     }
 
-    // Update reward variables for all pools. Be careful of gas spending!
-    function massUpdatePools() internal {
-        uint256 length = poolInfo.length;
-        for (uint256 pid = 0; pid < length; ++pid) {
-            updatePool(pid);
-        }
-    }
 
     // Update reward variables of the given pool to be up-to-date.
-    function updatePool(uint256 _pid) public {
-        PoolInfo storage pool = poolInfo[_pid];
+    function updatePool() public {
+        PoolInfo storage pool = poolInfo[0];
         if (block.number <= pool.lastRewardBlock) {
             return;
         }
@@ -221,13 +212,12 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
 
     /** 
     * @notice Stake Cent tokens to earn rewards.
-    * @param _pid Id of the pool to stake in.
     * @param _amount amount of tokens to stake.
     */
-    function addStake(uint256 _pid, uint256 _amount) public nonReentrant poolExists(_pid) {
-        PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][_msgSender()];
-        updatePool(_pid);
+    function addStake(uint256 _amount) public nonReentrant poolExists(0) {
+        PoolInfo storage pool = poolInfo[0];
+        UserInfo storage user = userInfo[0][_msgSender()];
+        updatePool();
         
         if (user.amount > 0) {
             uint256 pending = user.amount
@@ -244,15 +234,15 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
         pool.totCentStakedInPool = pool.totCentStakedInPool.add(_amount);
-        emit StakedToPool(_msgSender(), _pid, _amount);
+        emit StakedToPool(_msgSender(), _amount);
     }
 
     // Withdraw LP tokens from Staking contract.
-    function withdrawStake(uint256 _pid, uint256 _amount) public {
-        PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][_msgSender()];
+    function withdrawStake(uint256 _amount) public {
+        PoolInfo storage pool = poolInfo[0];
+        UserInfo storage user = userInfo[0][_msgSender()];
         require(user.amount >= _amount);
-        updatePool(_pid);
+        updatePool();
         
         uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
         if(pending > 0) {
@@ -265,19 +255,19 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
             pool.lpToken.safeTransfer(address(_msgSender()), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
-        emit Withdraw(_msgSender(), _pid, _amount);
+        emit Withdraw(_msgSender(), _amount);
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    function emergencyWithdraw(uint256 _pid) public {
-        PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][_msgSender()];
+    function emergencyWithdraw() public {
+        PoolInfo storage pool = poolInfo[0];
+        UserInfo storage user = userInfo[0][_msgSender()];
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
         pool.lpToken.safeTransfer(address(_msgSender()), amount);
         assert(user.amount == 0 && user.rewardDebt == 0);
-        emit EmergencyWithdraw(_msgSender(), _pid, amount);
+        emit EmergencyWithdraw(_msgSender(), amount);
     }
 
     function _transferFrom(address _token, address _from, address _to, uint256 _amount) internal returns(bool) {
@@ -301,7 +291,7 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     * @dev  protected by modifier onlyOwner.
     */
     function updateEmissionRate(uint256 _centPerBlock) public onlyOwner {
-        massUpdatePools();
+        updatePool();
         centPerBlock = _centPerBlock;
         
         emit UpdateEmissionRate(_msgSender(), centPerBlock);
