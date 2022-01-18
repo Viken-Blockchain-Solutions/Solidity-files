@@ -27,7 +27,7 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     uint256 public centPerBlock;
     uint256 public totalAllocPoint = 0;
     uint256 public startBlock;
-    uint256 public constant BONUS_MULTIPLIER = 40;
+    uint256 public constant BONUS_MULTIPLIER = 0;
     bool public initialized;
 
     /**
