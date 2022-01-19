@@ -55,17 +55,17 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         uint256 totCentStakedInPool;
     }
     
-   
-
     PoolInfo[] public poolInfo;
 
     mapping(IERC20 => bool) public poolExistence;
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
+
     error NotAuthorized();
     error OnlyOnce();
+    error TransferFailed();
     
 
-    modifier isDev() {
+    modifier onlyDev() {
         if (_msgSender() != dev) {
             revert NotAuthorized();
         }
@@ -96,11 +96,12 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
 
     /**
     * @param _dev Dev address.
+    * @param _centPerBlock The amount of tokens to reward each block number.
     */ 
     constructor(address _dev, uint256 _centPerBlock) {
         dev = _dev;
         centPerBlock = _centPerBlock;
-        startBlock = block.timestamp;
+        startBlock = block.number;
     }
 
     /**
@@ -110,26 +111,28 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     receive() external payable {
         revert("not payable receive");
     }
-    function setStartBlock(uint256 _startBlock) public onlyOwner {
-        startBlock = _startBlock;
-    }
 
-    function poolLength() external view returns (uint256) {
-        return poolInfo.length;
+    /**
+     * @notice Update to a new dev address by the previous dev address.
+     * @param _dev New dev address.
+     * @dev  protected by modifier dev.
+     */
+    function setDevAddress(address _dev) external onlyDev {
+        dev = _dev;
     }
 
     /**
-    * @notice Initiates a new pool. Can only be called by the owner.
-    * @param _allocPoint Amount of CENT being allocated to this pool.
-    * @param _lpToken Reward token address.
-    * @param _totRewardAmount Amount of tokens to be allocated as Reward.
-    * @dev This is executed in order:
-    * @dev 1. sets the current block.number as lastRewardBlock.
-    * @dev 2. adds the _allocPoint to totalAllocPoint.
-    * @dev 3. creates an entry as true for the pool in poolExistence[].
-    * @dev 4. creates the PoolInfo struct and pushes it to the poolInfo[].
-    * @dev 5. executes a SafeTransferFrom of rewardtokens into this smartcontract.
-    */ 
+     * @notice Initiates a new pool. Can only be called by the owner.
+     * @param _allocPoint Amount of CENT being allocated to this pool.
+     * @param _lpToken Reward token address.
+     * @param _totRewardAmount Amount of tokens to be allocated as Reward.
+     * @dev This is executed in order:
+     * @dev 1. sets the current block.number as lastRewardBlock.
+     * @dev 2. adds the _allocPoint to totalAllocPoint.
+     * @dev 3. creates an entry as true for the pool in poolExistence[].
+     * @dev 4. creates the PoolInfo struct and pushes it to the poolInfo[].
+     * @dev 5. executes a SafeTransferFrom of rewardtokens into this smartcontract.
+     */ 
     function initiatePool(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount) 
         external
         onlyOwner
@@ -149,47 +152,28 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
             totCentStakedInPool: 0
         }));
 
-        require(_transferFrom(address(lpToken), address(_msgSender()), address(this), _totRewardAmount));
+        _transferFrom(lpToken, address(_msgSender()), address(this), _totRewardAmount);
         initialized = true;
         emit PoolInitialized(_allocPoint, _lpToken, _totRewardAmount);
-    }   
+    }
 
     /**
-    * @notice Update the given pool's CENT allocation amount.
-    * @param _pid Pool id.
-    * @param _newAllocPoint New amount to allocate to the pool. Will replace existing alloc.
-    * @dev  Can only be called by the owner.
-    */ 
-    function updateAllocation(uint256 _pid, uint256 _newAllocPoint)
-        internal 
+     * @notice Update the pool'd CENT allocation amount.
+     * @param _newAllocPoint New amount to allocate to the pool. Will replace existing allocation.
+     * @dev  Can only be called by the owner.
+     */ 
+    function updateAllocation(uint256 _newAllocPoint)
+        external 
         onlyOwner 
-        poolExists(_pid) 
+        poolExists(0)
     {
-        totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_newAllocPoint);
-        poolInfo[_pid].allocPoint = _newAllocPoint;
+        totalAllocPoint = totalAllocPoint.sub(poolInfo[0].allocPoint).add(_newAllocPoint);
+        poolInfo[0].allocPoint = _newAllocPoint;
     }
 
-    // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) internal pure returns (uint256) {
-        return _to.sub(_from).mul(BONUS_MULTIPLIER);
-    }
-
-    // View function to see pending Cent´s on frontend.
-    function pendingCent(uint256 _pid, address _user) public view returns (uint256) {
-        PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][_user];
-        uint256 accTokenPerShare = pool.accTokenPerShare;
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 centReward = multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accTokenPerShare = accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
-        }
-        return user.amount.mul(accTokenPerShare).div(1e12).sub(user.rewardDebt);
-    }
-
-
-    // Update reward variables of the given pool to be up-to-date.
+    /**
+     * @notice Update reward variables of the given pool to be up-to-date.
+     */
     function updatePool() public {
         PoolInfo storage pool = poolInfo[0];
         if (block.number <= pool.lastRewardBlock) {
@@ -204,16 +188,57 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         uint256 centReward = 
             multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
         
-        pool.lpToken.safeTransfer(address(dev), centReward.div(10));
+        if (!_transfer(pool.lpToken, address(dev), centReward.div(10))) {
+            revert TransferFailed();
+        }
 
         pool.accTokenPerShare = pool.accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
+    /**
+     * @notice View function to see pending Cent´s on frontend.
+     * @param _user The User to retrieve the pending info.
+     */
+    function pendingCent(address _user) external view returns (uint256) {
+        PoolInfo storage pool = poolInfo[0];
+        UserInfo storage user = userInfo[0][_user];
+
+        uint256 accTokenPerShare = pool.accTokenPerShare;
+        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        
+        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
+            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+            uint256 centReward = multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            accTokenPerShare = accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
+        }
+        return user.amount.mul(accTokenPerShare).div(1e12).sub(user.rewardDebt);
+    }
+
+    /**
+     * @notice Set startBlock.
+     * @param _startBlock New block.timestamp for startBlock.
+     */ 
+    function setStartBlock(uint256 _startBlock) external onlyOwner {
+        startBlock = _startBlock;
+    }
+
+    /**
+     * @notice Update the emission rate of all pools..
+     * @param _centPerBlock new amount to reward per block.
+     * @dev  protected by modifier onlyOwner.
+     */
+    function updateEmissionRate(uint256 _centPerBlock) external onlyOwner {
+        updatePool();
+        centPerBlock = _centPerBlock;
+        
+        emit UpdateEmissionRate(_msgSender(), centPerBlock);
+    }
+
     /** 
-    * @notice Stake Cent tokens to earn rewards.
-    * @param _amount amount of tokens to stake.
-    */
+     * @notice Stake CENT to earn rewards.
+     * @param _amount amount of CENT tokens to stake.
+     */
     function addStake(uint256 _amount) public nonReentrant poolExists(0) {
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][_msgSender()];
@@ -224,76 +249,100 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
                 .mul(pool.accTokenPerShare)
                     .div(1e12)
                         .sub(user.rewardDebt);
-            if(pending > 0) {
-                _transferFrom(address(pool.lpToken), address(_msgSender()), address(this), pending);
+            if (pending > 0) {
+                _transferFrom(pool.lpToken, address(_msgSender()), address(this), pending);
             }
         }
-        if(_amount > 0) {
+        if (_amount > 0) {
             user.amount = user.amount.add(_amount);
-            require(_transferFrom(address(pool.lpToken), address(_msgSender()), address(this), _amount));
+            _transferFrom(pool.lpToken, address(_msgSender()), address(this), _amount);
         }
+
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
         pool.totCentStakedInPool = pool.totCentStakedInPool.add(_amount);
         emit StakedToPool(_msgSender(), _amount);
     }
 
-    // Withdraw LP tokens from Staking contract.
+    /**
+     * @notice Withdraw staked tokens from Staking contract.
+     * @param _amount The staked amount to withdraw.
+     */
     function withdrawStake(uint256 _amount) public {
+        require(_msgSender() != address(0), "Zero Address!");
+
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][_msgSender()];
         require(user.amount >= _amount);
         updatePool();
         
         uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
-        if(pending > 0) {
-            pool.lpToken.safeTransfer(_msgSender(), pending);
-            emit SentPendingRewards(_msgSender(), pending);
+
+        if (pending > 0) {
+            uint256 _pending = pending;
+            pending = 0;
+            _transfer(pool.lpToken, address(_msgSender()), _pending);
+            emit SentPendingRewards(_msgSender(), _pending);
         }
         
-        if(_amount > 0) {
+        if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
-            pool.lpToken.safeTransfer(address(_msgSender()), _amount);
+            if (!_transfer(pool.lpToken, address(_msgSender()), _amount)) revert TransferFailed();
         }
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
+        pool.totCentStakedInPool = pool.totCentStakedInPool.sub(_amount);
         emit Withdraw(_msgSender(), _amount);
     }
 
-    // Withdraw without caring about rewards. EMERGENCY ONLY.
+    /**
+     * @notice Withdraw without caring about rewards. EMERGENCY ONLY.
+     */
     function emergencyWithdraw() public {
+        require(_msgSender() != address(0), "Zero Address!");
         PoolInfo storage pool = poolInfo[0];
         UserInfo storage user = userInfo[0][_msgSender()];
-        uint256 amount = user.amount;
+        uint256 _amount = user.amount;
+        
         user.amount = 0;
         user.rewardDebt = 0;
-        pool.lpToken.safeTransfer(address(_msgSender()), amount);
+
+        _transfer(pool.lpToken, address(_msgSender()), _amount);
+
         assert(user.amount == 0 && user.rewardDebt == 0);
-        emit EmergencyWithdraw(_msgSender(), amount);
+        pool.totCentStakedInPool = pool.totCentStakedInPool.sub(_amount);
+        emit EmergencyWithdraw(_msgSender(), _amount);
     }
 
-    function _transferFrom(address _token, address _from, address _to, uint256 _amount) internal returns(bool) {
-        IERC20(_token).safeTransferFrom(_from, _to, _amount);
+    // Return reward multiplier over the given _from to _to block.
+    function getMultiplier(uint256 _from, uint256 _to) internal pure returns (uint256) {
+        return _to.sub(_from).mul(BONUS_MULTIPLIER);
+    }
+
+    // Returns the pool number
+    function poolLength() internal view returns (uint256) {
+        return poolInfo.length;
+    }
+
+    /**
+     * @notice Secure internal _transferFrom.
+     * @param _token The IERC20 token address.
+     * @param _from The address from.
+     * @param _to The address to.
+     * @param _amount The transfer amount.
+     */
+    function _transferFrom(IERC20 _token, address _from, address _to, uint256 _amount) internal returns(bool) {
+        _token.safeTransferFrom(_from, _to, _amount);
         return true;
     }
 
     /**
-    * @notice Update to a new dev address by the previous dev address.
-    * @param _dev New dev address.
-    * @dev  protected by modifier dev.
-    */
-    function setDevAddress(address _dev) public isDev {
-        dev = _dev;
+     * @notice Secure internal _transferFrom.
+     * @param _token The IERC20 token address.
+     * @param _to The address to.
+     * @param _amount The transfer amount.
+     */
+    function _transfer(IERC20 _token, address _to, uint256 _amount) internal returns(bool) {
+        _token.safeTransfer(_to, _amount);
+        return true;
     }
-
     
-    /**
-    * @notice Update the emission rate of all pools..
-    * @param _centPerBlock new amount to reward per block.
-    * @dev  protected by modifier onlyOwner.
-    */
-    function updateEmissionRate(uint256 _centPerBlock) public onlyOwner {
-        updatePool();
-        centPerBlock = _centPerBlock;
-        
-        emit UpdateEmissionRate(_msgSender(), centPerBlock);
-    }
 }
