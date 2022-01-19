@@ -25,17 +25,17 @@ describe("Staking contract", function () {
     // Get the ContractFactory and Signers here.
     [owner, dev, user1, user2] = await ethers.getSigners();
 
-    testERC20Contract = await ethers.getContractFactory("testERC20");
+    ERC20Contract = await ethers.getContractFactory("CentaurifyToken");
     Contract = await ethers.getContractFactory("SingleStaking");
 
-    testERC20 = await testERC20Contract.deploy();
+    testERC20 = await ERC20Contract.deploy();
 
     // constructor arguments (address _dev, uint256 _centPerBlock) {
-    staking = await Contract.deploy(dev.address);
+    staking = await Contract.deploy(dev.address, 1000000000000000000n);
 
     // Transfer 5000 tokens from owner to user1 || user2
-    await testERC20.transfer(user1.address, 5000);
-    await testERC20.transfer(user2.address, 5000);
+    await testERC20.transfer(user1.address, 500000000);
+    await testERC20.transfer(user2.address, 500000000);
     user1Balance = await testERC20.balanceOf(user1.address);
     user2Balance = await testERC20.balanceOf(user2.address);
   });
@@ -45,8 +45,8 @@ describe("Staking contract", function () {
       expect(await staking.owner()).to.equal(owner.address);
     });
     it("Should send 5000 test tokens to users 1 and 2's account", async function () {
-      expect(user1Balance).to.equal(5000);
-      expect(user2Balance).to.equal(5000);
+      expect(user1Balance).to.equal(500000000);
+      expect(user2Balance).to.equal(500000000);
     });
   });
 
@@ -61,7 +61,7 @@ describe("Staking contract", function () {
         .connect(owner)
         // initiatePool(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount)
         .initiatePool(1000, testERC20.address, 1500000)
-      ).to.emit(staking, "PoolInitiated");
+      ).to.emit(staking, "PoolInitialized");
       
       expect(await staking.poolLength()).to.be.equal(1);
     });
@@ -88,47 +88,47 @@ describe("Staking contract", function () {
       await staking.connect(owner).initiatePool(1000, testERC20.address, 1500000)
       expect(await staking.poolLength()).to.be.equal(1);
     });
-    it("Should let User1 and User2 stake 500 tokens each", async function () {
+    it("Should let User1 and User2 stake 5000 tokens each", async function () {
       const beforeContractBalance = await testERC20.balanceOf(staking.address);
       const beforeUser1Balance = await testERC20.balanceOf(user1.address);
       const beforeUser2Balance = await testERC20.balanceOf(user2.address);
       
-      await testERC20.connect(user1).approve(staking.address, 500);
-      expect(await staking.connect(user1).addStake(0, 500))
+      await testERC20.connect(user1).approve(staking.address, 5000);
+      expect(await staking.connect(user1).addStake(5000))
       .to.emit(staking, "StakedToPool")
-        .withArgs(user1.address, 0, 500);
+        .withArgs(user1.address, 5000);
       
-      await testERC20.connect(user2).approve(staking.address, 500);
-      expect(await staking.connect(user2).addStake(0, 500))
+      await testERC20.connect(user2).approve(staking.address, 5000);
+      expect(await staking.connect(user2).addStake(5000))
       .to.emit(staking, "StakedToPool")
-        .withArgs(user2.address, 0, 500);
+        .withArgs(user2.address, 5000);
       
       const afterContractBalance = await testERC20.balanceOf(staking.address);
       const afterUser1Balance = await testERC20.balanceOf(user1.address);
       const afterUser2Balance = await testERC20.balanceOf(user2.address);
       
-      expect(afterUser1Balance).to.be.equal(beforeUser1Balance.sub(500))
-      expect(afterUser2Balance).to.be.equal(beforeUser2Balance.sub(500))
-      expect(afterContractBalance).to.be.equal(beforeContractBalance.add(1000))
+      expect(afterUser1Balance).to.be.equal(beforeUser1Balance.sub(5000))
+      expect(afterUser2Balance).to.be.equal(beforeUser2Balance.sub(5000))
+      expect(afterContractBalance).to.be.equal(beforeContractBalance.add(10000))
     });
     it("Should let User1 withdraw 400 tokens", async function () {
       const beforeContractBalance = await testERC20.balanceOf(staking.address);
       const beforeUser1Balance = await testERC20.balanceOf(user1.address);
       
-      await testERC20.connect(user1).approve(staking.address, 500);
-      expect(await staking.connect(user1).addStake(0, 500))
+      await testERC20.connect(user1).approve(staking.address, 5000);
+      expect(await staking.connect(user1).addStake(5000))
       .to.emit(staking, "StakedToPool")
-        .withArgs(user1.address, 0, 500);
+        .withArgs(user1.address, 5000);
       
-      expect(await staking.connect(user1).withdrawStake(0, 400))
+      expect(await staking.connect(user1).withdrawStake(4000))
       .to.emit(staking, "Withdraw")
-        .withArgs(user1.address, 0, 400);
+        .withArgs(user1.address, 4000);
       
       const afterContractBalance = await testERC20.balanceOf(staking.address);
       const afterUser1Balance = await testERC20.balanceOf(user1.address);
       
-      expect(afterUser1Balance).to.be.equal(beforeUser1Balance.sub(100));
-      expect(afterContractBalance).to.be.equal(beforeContractBalance.add(100));
+      expect(afterUser1Balance).to.be.equal(beforeUser1Balance.sub(1000));
+      expect(afterContractBalance).to.be.equal(beforeContractBalance.add(1000));
     });
   });
   

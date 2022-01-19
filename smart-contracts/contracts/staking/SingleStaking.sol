@@ -316,8 +316,9 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     function getMultiplier(uint256 _from, uint256 _to) internal pure returns (uint256) {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
     }
+
     // Returns the pool number
-    function poolLength() internal view returns (uint256) {
+    function poolLength() public view returns (uint256) {
         return poolInfo.length;
     }
 
