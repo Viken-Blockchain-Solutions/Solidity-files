@@ -43,7 +43,7 @@ module.exports = {
       defaultBalanceEther: 10,
     },
     rinkeby: {
-      url: `https://eth-rinkeby.alchemyapi.io/v2/${rinkebyApiKey}`,
+      url: rinkebyApiKey,
       chainId: 4,
       account: [process.env.ACCOUNT_PRIVATE_KEY]
     },
