@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @notice This contract contains a set of 'Nice to have" modifers.
  * @notice onlyAdmin.
  * @notice notContract.
- * @notice 
+ * @notice itemExists.
  */
 
 
@@ -15,6 +15,7 @@ contract Modifers is Context, Ownable {
 
     address public admin;
     bool public initialized;
+    uint256[] public itemArray;
 
     // errors
     error OnlyAdmin();
@@ -51,6 +52,15 @@ contract Modifers is Context, Ownable {
             revert AlreadyInitialized();
         _;
         initialized = true;
+    }
+
+    /**
+     * @notice Checks if an _id is in an array.
+     * @dev requires the method _isContract(address sender).
+     */
+    modifier itemExists(uint256 _id) {
+        require(_id < itemArray.length, "not in list");
+        _;
     }
 
      /**
