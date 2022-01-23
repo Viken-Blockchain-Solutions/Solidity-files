@@ -39,7 +39,7 @@ contract StakingContract is Context, Ownable {
 
     mapping(address => Vault) public VaultsMapping;
 
-    event StakingToken(string Name, address stakeToken);
+    event StakingToken(string Name, address token);
 
     event StakedInVault(uint256 staked, address stakeholder);
     
@@ -50,7 +50,7 @@ contract StakingContract is Context, Ownable {
 
 
     constructor(address _tokenAddress) {
-       stakeToken = IERC20(_tokenAddress);
+       token = IERC20(_tokenAddress);
     } 
     /**
      * @notice receive function reverts and returns the funds to the sender.
@@ -73,14 +73,14 @@ contract StakingContract is Context, Ownable {
         _stake = 0;
         
         VaultsMapping[msg.sender] = Vault(
-            status = Status.Staking1,
-            address(stakeToken),
+            status = Status.Staking,
+            address(token),
             amount,
             0
         );
 
         require(
-            stakeToken.transferFrom(address(msg.sender), address(this), amount),
+            token.transferFrom(address(msg.sender), address(this), amount),
             "AddToVault failed"
         );
 
@@ -93,7 +93,7 @@ contract StakingContract is Context, Ownable {
     * @notice Get the balance of the staking contract..
     */
     function getContractBalance() public view returns (uint256) {
-        return stakeToken.balanceOf(address(this));
+        return token.balanceOf(address(this));
     }
 
 
@@ -104,9 +104,9 @@ contract StakingContract is Context, Ownable {
         uint256 _amount = VaultsMapping[msg.sender].amount;
         uint256 _reward = VaultsMapping[msg.sender].reward;
         VaultsMapping[msg.sender].amount = 0;
-        VaultsMapping[msg.sender].status = Status.Unstaked;
+        VaultsMapping[msg.sender].status = Status.Finished;
 
-        require(stakeToken.transfer(msg.sender, _amount.add(_reward)), 
+        require(token.transfer(msg.sender, _amount.add(_reward)), 
             "Withdraw Failed!"
         );
 
