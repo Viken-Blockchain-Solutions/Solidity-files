@@ -234,12 +234,12 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
                         .sub(userInfo[_msgSender()].rewardDebt);
 
             if (pending > 0) {
-                _transfer(poolInfo.lpToken, address(_msgSender()), pending);
+                _transfer(address(_msgSender()), pending);
             }
         }
         if (_amount > 0) {
             userInfo[_msgSender()].amount = userInfo[_msgSender()].amount.add(_amount);
-            _transferFrom(poolInfo.lpToken, address(_msgSender()), address(this), _amount);
+            _transferFrom(address(_msgSender()), address(this), _amount);
         }
 
         userInfo[_msgSender()].rewardDebt = userInfo[_msgSender()].amount.mul(poolInfo.accTokenPerShare).div(1e12);
@@ -262,14 +262,14 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         if (pending > 0) {
             uint256 _pending = pending;
             pending = 0;
-            require(_transfer(poolInfo.lpToken, address(_msgSender()), _pending));
+            require(_transfer(address(_msgSender()), _pending));
             emit SentPendingRewards(_msgSender(), _pending);
         }
         
         // transfer staked amount.
         if (_amount > 0) {
             userInfo[_msgSender()].amount = userInfo[_msgSender()].amount.sub(_amount);
-            if (!_transfer(poolInfo.lpToken, address(_msgSender()), _amount)) revert TransferFailed();
+            if (!_transfer(address(_msgSender()), _amount)) revert TransferFailed();
         }
         userInfo[_msgSender()].rewardDebt = userInfo[_msgSender()].amount.mul(poolInfo.accTokenPerShare).div(1e12);
         poolInfo.totCentStakedInPool = poolInfo.totCentStakedInPool.sub(_amount);
@@ -286,7 +286,7 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         userInfo[_msgSender()].amount = 0;
         userInfo[_msgSender()].rewardDebt = 0;
 
-        _transfer(poolInfo.lpToken, address(_msgSender()), _amount);
+        _transfer(address(_msgSender()), _amount);
 
         assert(userInfo[_msgSender()].amount == 0 && userInfo[_msgSender()].rewardDebt == 0);
         poolInfo.totCentStakedInPool = poolInfo.totCentStakedInPool.sub(_amount);
@@ -305,12 +305,11 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @param _to The address to.
      * @param _amount The transfer amount.
      */
-    function _transferFrom(IERC20 _token, address _from, address _to, uint256 _amount) 
-        internal 
+    function _transferFrom(address _from, address _to, uint256 _amount) 
+        private 
         returns(bool) 
     {
-        if (_token != poolInfo.lpToken) revert WrongToken(_token);
-        _token.safeTransferFrom(_from, _to, _amount);
+        poolInfo.lpToken.safeTransferFrom(_from, _to, _amount);
         return true;
     }
 
@@ -320,9 +319,8 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @param _to The address to.
      * @param _amount The transfer amount.
      */
-    function _transfer(IERC20 _token, address _to, uint256 _amount) internal returns(bool) {
-        if (_token != poolInfo.lpToken) revert WrongToken(_token);
-        _token.safeTransfer(_to, _amount);
+    function _transfer(address _to, uint256 _amount) private returns(bool) {
+        poolInfo.lpToken.safeTransfer(_to, _amount);
         return true;
     }
     
