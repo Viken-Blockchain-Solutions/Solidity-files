@@ -3,24 +3,20 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 
 /** 
- * @notice This contract with let an user deposit funds into a Staking Vault with a
- * givenlockperiod. After the lockperiod, the user can withdraw the funds and the 
- * accumulated rewards back to their wallet.
+ * @notice This contract will let a user deposit funds into a Vault.
  */
 contract StakingContract is Context, Ownable {
     using SafeMath for uint256;
 
     enum Status {
-        None,
-        Staking1,
-        Staking2,
-        Staking3,
-        Unstaked
+      None,
+      Staking,
+      Finished
     }
 
     /**
@@ -39,7 +35,7 @@ contract StakingContract is Context, Ownable {
     
     Status public status;
 
-    ERC20 public stakeToken;
+    IERC20 public token;
 
     mapping(address => Vault) public VaultsMapping;
 
@@ -54,7 +50,7 @@ contract StakingContract is Context, Ownable {
 
 
     constructor(address _tokenAddress) {
-       stakeToken = ERC20(_tokenAddress);
+       stakeToken = IERC20(_tokenAddress);
     } 
     /**
      * @notice receive function reverts and returns the funds to the sender.
