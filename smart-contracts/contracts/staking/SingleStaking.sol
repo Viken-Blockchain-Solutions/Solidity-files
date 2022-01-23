@@ -141,7 +141,7 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
             totCentStakedInPool: 0
         });
 
-        _transferFrom(lpToken, address(_msgSender()), address(this), _totRewardAmount);
+        _transferFrom(address(_msgSender()), address(this), _totRewardAmount);
         initialized = true;
         emit PoolInitialized(_allocPoint, _lpToken, _totRewardAmount);
     }
@@ -176,7 +176,7 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         uint256 centReward = 
             multiplier.mul(centPerBlock).mul(poolInfo.allocPoint).div(totalAllocPoint);
         
-        if (!_transfer(poolInfo.lpToken, address(dev), centReward.div(10))) {
+        if (!_transfer(address(dev), centReward.div(10))) {
             revert TransferFailed();
         }
 
@@ -300,7 +300,6 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
 
     /**
      * @notice Secure internal _transferFrom.
-     * @param _token The IERC20 token address.
      * @param _from The address from.
      * @param _to The address to.
      * @param _amount The transfer amount.
@@ -315,7 +314,6 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
 
     /**
      * @notice Secure internal _transferFrom.
-     * @param _token The IERC20 token address.
      * @param _to The address to.
      * @param _amount The transfer amount.
      */
