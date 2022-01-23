@@ -31,22 +31,22 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     bool public initialized;
 
     /**
-    * @notice UserInfo Struct with the staking data of each user.
-    * @param amount The amount of CENT a user is staking.
-    * @param rewardDebt Reward debt.
-    */
+     * @notice UserInfo Struct with the staking data of each user.
+     * @param amount The amount of CENT a user is staking.
+     * @param rewardDebt Reward debt.
+     */
     struct UserInfo {
         uint256 amount;   
         uint256 rewardDebt;
     }
         
     /**
-    * @notice PoolInfo Struct with the staking data of the pool.
-    * @param erc20 Address of the staking token.
-    * @param allocPoint The amount of allocation points assigned to this pool.
-    * @param lastRewardBlock Last block number that CENT distribution occures.
-    * @param accTokenPerShare Accumulated Tokens per share, times 1e12.
-    */
+     * @notice PoolInfo Struct with the staking data of the pool.
+     * @param erc20 Address of the staking token.
+     * @param allocPoint The amount of allocation points assigned to this pool.
+     * @param lastRewardBlock Last block number that CENT distribution occures.
+     * @param accTokenPerShare Accumulated Tokens per share, times 1e12.
+     */
     struct PoolInfo {
         IERC20 lpToken;
         uint256 allocPoint;
@@ -55,29 +55,20 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         uint256 totCentStakedInPool;
     }
     
-    PoolInfo[] public poolInfo;
+    PoolInfo public poolInfo;
 
-    mapping(IERC20 => bool) public poolExistence;
-    mapping (uint256 => mapping (address => UserInfo)) public userInfo;
+    mapping (address => UserInfo) public userInfo;
 
     error NotAuthorized();
     error OnlyOnce();
     error TransferFailed();
+    error WrongToken(IERC20 Token);
     
 
     modifier onlyDev() {
         if (_msgSender() != dev) {
             revert NotAuthorized();
         }
-        _;
-    }
-    modifier notDuplicated(IERC20 _lpToken) {
-        require(poolExistence[_lpToken] == false, "already exists");
-        _;
-    }
-
-    modifier poolExists(uint256 pid) {
-        require(pid < poolInfo.length, "not in list");
         _;
     }
 
@@ -95,9 +86,9 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     event SentPendingRewards(address indexed user, uint256 amount);
 
     /**
-    * @param _dev Dev address.
-    * @param _centPerBlock The amount of tokens to reward each block number.
-    */ 
+     * @param _dev Dev address.
+     * @param _centPerBlock The amount of tokens to reward each block number.
+     */ 
     constructor(address _dev, uint256 _centPerBlock) {
         dev = _dev;
         centPerBlock = _centPerBlock;
@@ -105,9 +96,9 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     }
 
     /**
-    * @notice receive (fallback function) If Ether is sendt to this contract,
-    *         the transaction reverts and returns the funds to the sender.
-    */ 
+     * @notice receive (fallback function) If Ether is sendt to this contract,
+     *         the transaction reverts and returns the funds to the sender.
+     */ 
     receive() external payable {
         revert("not payable receive");
     }
@@ -130,27 +121,25 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @dev 1. sets the current block.number as lastRewardBlock.
      * @dev 2. adds the _allocPoint to totalAllocPoint.
      * @dev 3. creates an entry as true for the pool in poolExistence[].
-     * @dev 4. creates the PoolInfo struct and pushes it to the poolInfo[].
-     * @dev 5. executes a SafeTransferFrom of rewardtokens into this smartcontract.
+     * @dev 4. adds the values to the pool.
+     * @dev 5. executes a transfer of rewardtokens, into this smartcontract.
      */ 
     function initiatePool(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount) 
         external
         onlyOwner
-        notDuplicated(_lpToken)
         notInitialized
     {
         IERC20 lpToken = _lpToken;
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
-        poolExistence[_lpToken] = true;
         
-        poolInfo.push(PoolInfo({
+        PoolInfo({
             lpToken: _lpToken,
             allocPoint: _allocPoint,
             lastRewardBlock: lastRewardBlock,
             accTokenPerShare: 0,
             totCentStakedInPool: 0
-        }));
+        });
 
         _transferFrom(lpToken, address(_msgSender()), address(this), _totRewardAmount);
         initialized = true;
@@ -162,38 +151,37 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @param _newAllocPoint New amount to allocate to the pool. Will replace existing allocation.
      * @dev  Can only be called by the owner.
      */ 
-    function updateAllocation(uint256 _newAllocPoint)
-        external 
-        onlyOwner 
-        poolExists(0)
-    {
-        totalAllocPoint = totalAllocPoint.sub(poolInfo[0].allocPoint).add(_newAllocPoint);
-        poolInfo[0].allocPoint = _newAllocPoint;
+    function updateAllocation(uint256 _newAllocPoint) external onlyOwner {
+        totalAllocPoint = totalAllocPoint.sub(poolInfo.allocPoint).add(_newAllocPoint);
+        poolInfo.allocPoint = _newAllocPoint;
     }
 
     /**
-     * @notice Update reward variables of the given pool to be up-to-date.
+     * @notice Update data variables of the given pool to be up-to-date.
      */
     function updatePool() public {
-        PoolInfo storage pool = poolInfo[0];
-        if (block.number <= pool.lastRewardBlock) {
+        // check if pool has started rewarding.
+        if (block.number <= poolInfo.lastRewardBlock) {
             return;
         }
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        if (lpSupply == 0 || pool.allocPoint == 0) {
-            pool.lastRewardBlock = block.number;
+
+        uint256 lpSupply = poolInfo.lpToken.balanceOf(address(this));
+
+        if (lpSupply == 0 || poolInfo.allocPoint == 0) {
+            poolInfo.lastRewardBlock = block.number;
             return;
         }
-        uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
+
+        uint256 multiplier = getMultiplier(poolInfo.lastRewardBlock, block.number);
         uint256 centReward = 
-            multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            multiplier.mul(centPerBlock).mul(poolInfo.allocPoint).div(totalAllocPoint);
         
-        if (!_transfer(pool.lpToken, address(dev), centReward.div(10))) {
+        if (!_transfer(poolInfo.lpToken, address(dev), centReward.div(10))) {
             revert TransferFailed();
         }
 
-        pool.accTokenPerShare = pool.accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
-        pool.lastRewardBlock = block.number;
+        poolInfo.accTokenPerShare = poolInfo.accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
+        poolInfo.lastRewardBlock = block.number;
     }
 
     /**
@@ -201,30 +189,27 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @param _user The User to retrieve the pending info.
      */
     function pendingCent(address _user) external view returns (uint256) {
-        PoolInfo storage pool = poolInfo[0];
-        UserInfo storage user = userInfo[0][_user];
-
-        uint256 accTokenPerShare = pool.accTokenPerShare;
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 accTokenPerShare = poolInfo.accTokenPerShare;
+        uint256 lpSupply = poolInfo.lpToken.balanceOf(address(this));
         
-        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 centReward = multiplier.mul(centPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        if (block.number > poolInfo.lastRewardBlock && lpSupply != 0) {
+            uint256 multiplier = getMultiplier(poolInfo.lastRewardBlock, block.number);
+            uint256 centReward = multiplier.mul(centPerBlock).mul(poolInfo.allocPoint).div(totalAllocPoint);
             accTokenPerShare = accTokenPerShare.add(centReward.mul(1e12).div(lpSupply));
         }
-        return user.amount.mul(accTokenPerShare).div(1e12).sub(user.rewardDebt);
+        return userInfo[_user].amount.mul(accTokenPerShare).div(1e12).sub(userInfo[_user].rewardDebt);
     }
 
     /**
      * @notice Set startBlock.
-     * @param _startBlock New block.timestamp for startBlock.
+     * @param _startBlock New block.number for startBlock.
      */ 
     function setStartBlock(uint256 _startBlock) external onlyOwner {
         startBlock = _startBlock;
     }
 
     /**
-     * @notice Update the emission rate of all pools..
+     * @notice Update the emission rate of pool.
      * @param _centPerBlock new amount to reward per block.
      * @dev  protected by modifier onlyOwner.
      */
@@ -239,27 +224,26 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @notice Stake CENT to earn rewards.
      * @param _amount amount of CENT tokens to stake.
      */
-    function addStake(uint256 _amount) public nonReentrant poolExists(0) {
-        PoolInfo storage pool = poolInfo[0];
-        UserInfo storage user = userInfo[0][_msgSender()];
+    function addStake(uint256 _amount) public nonReentrant {
         updatePool();
         
-        if (user.amount > 0) {
-            uint256 pending = user.amount
-                .mul(pool.accTokenPerShare)
+        if (userInfo[_msgSender()].amount > 0) {
+            uint256 pending = userInfo[_msgSender()].amount
+                .mul(poolInfo.accTokenPerShare)
                     .div(1e12)
-                        .sub(user.rewardDebt);
+                        .sub(userInfo[_msgSender()].rewardDebt);
+
             if (pending > 0) {
-                _transferFrom(pool.lpToken, address(_msgSender()), address(this), pending);
+                _transfer(poolInfo.lpToken, address(_msgSender()), pending);
             }
         }
         if (_amount > 0) {
-            user.amount = user.amount.add(_amount);
-            _transferFrom(pool.lpToken, address(_msgSender()), address(this), _amount);
+            userInfo[_msgSender()].amount = userInfo[_msgSender()].amount.add(_amount);
+            _transferFrom(poolInfo.lpToken, address(_msgSender()), address(this), _amount);
         }
 
-        user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
-        pool.totCentStakedInPool = pool.totCentStakedInPool.add(_amount);
+        userInfo[_msgSender()].rewardDebt = userInfo[_msgSender()].amount.mul(poolInfo.accTokenPerShare).div(1e12);
+        poolInfo.totCentStakedInPool = poolInfo.totCentStakedInPool.add(_amount);
         emit StakedToPool(_msgSender(), _amount);
     }
 
@@ -267,59 +251,51 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @notice Withdraw staked tokens from Staking contract.
      * @param _amount The staked amount to withdraw.
      */
-    function withdrawStake(uint256 _amount) public {
+    function withdrawStake(uint256 _amount) public nonReentrant {
         require(_msgSender() != address(0), "Zero Address!");
-
-        PoolInfo storage pool = poolInfo[0];
-        UserInfo storage user = userInfo[0][_msgSender()];
-        require(user.amount >= _amount);
+        require(userInfo[_msgSender()].amount >= _amount);
         updatePool();
         
-        uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pending = userInfo[_msgSender()].amount.mul(poolInfo.accTokenPerShare).div(1e12).sub(userInfo[_msgSender()].rewardDebt);
 
+        // transfer pending reward.
         if (pending > 0) {
             uint256 _pending = pending;
             pending = 0;
-            _transfer(pool.lpToken, address(_msgSender()), _pending);
+            require(_transfer(poolInfo.lpToken, address(_msgSender()), _pending));
             emit SentPendingRewards(_msgSender(), _pending);
         }
         
+        // transfer staked amount.
         if (_amount > 0) {
-            user.amount = user.amount.sub(_amount);
-            if (!_transfer(pool.lpToken, address(_msgSender()), _amount)) revert TransferFailed();
+            userInfo[_msgSender()].amount = userInfo[_msgSender()].amount.sub(_amount);
+            if (!_transfer(poolInfo.lpToken, address(_msgSender()), _amount)) revert TransferFailed();
         }
-        user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
-        pool.totCentStakedInPool = pool.totCentStakedInPool.sub(_amount);
+        userInfo[_msgSender()].rewardDebt = userInfo[_msgSender()].amount.mul(poolInfo.accTokenPerShare).div(1e12);
+        poolInfo.totCentStakedInPool = poolInfo.totCentStakedInPool.sub(_amount);
         emit Withdraw(_msgSender(), _amount);
     }
 
     /**
      * @notice Withdraw without caring about rewards. EMERGENCY ONLY.
      */
-    function emergencyWithdraw() public {
+    function emergencyWithdraw() public nonReentrant {
         require(_msgSender() != address(0), "Zero Address!");
-        PoolInfo storage pool = poolInfo[0];
-        UserInfo storage user = userInfo[0][_msgSender()];
-        uint256 _amount = user.amount;
-        
-        user.amount = 0;
-        user.rewardDebt = 0;
 
-        _transfer(pool.lpToken, address(_msgSender()), _amount);
+        uint256 _amount = userInfo[_msgSender()].amount;
+        userInfo[_msgSender()].amount = 0;
+        userInfo[_msgSender()].rewardDebt = 0;
 
-        assert(user.amount == 0 && user.rewardDebt == 0);
-        pool.totCentStakedInPool = pool.totCentStakedInPool.sub(_amount);
+        _transfer(poolInfo.lpToken, address(_msgSender()), _amount);
+
+        assert(userInfo[_msgSender()].amount == 0 && userInfo[_msgSender()].rewardDebt == 0);
+        poolInfo.totCentStakedInPool = poolInfo.totCentStakedInPool.sub(_amount);
         emit EmergencyWithdraw(_msgSender(), _amount);
     }
 
     // Return reward multiplier over the given _from to _to block.
     function getMultiplier(uint256 _from, uint256 _to) internal pure returns (uint256) {
         return _to.sub(_from).mul(BONUS_MULTIPLIER);
-    }
-
-    // Returns the pool number
-    function poolLength() public view returns (uint256) {
-        return poolInfo.length;
     }
 
     /**
@@ -329,7 +305,11 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @param _to The address to.
      * @param _amount The transfer amount.
      */
-    function _transferFrom(IERC20 _token, address _from, address _to, uint256 _amount) internal returns(bool) {
+    function _transferFrom(IERC20 _token, address _from, address _to, uint256 _amount) 
+        internal 
+        returns(bool) 
+    {
+        if (_token != poolInfo.lpToken) revert WrongToken(_token);
         _token.safeTransferFrom(_from, _to, _amount);
         return true;
     }
@@ -341,6 +321,7 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
      * @param _amount The transfer amount.
      */
     function _transfer(IERC20 _token, address _to, uint256 _amount) internal returns(bool) {
+        if (_token != poolInfo.lpToken) revert WrongToken(_token);
         _token.safeTransfer(_to, _amount);
         return true;
     }
