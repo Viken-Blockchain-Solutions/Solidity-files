@@ -62,7 +62,6 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
     error NotAuthorized();
     error OnlyOnce();
     error TransferFailed();
-    error WrongToken(IERC20 Token);
     
 
     modifier onlyDev() {
@@ -133,13 +132,11 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
         
-        PoolInfo({
-            lpToken: _lpToken,
-            allocPoint: _allocPoint,
-            lastRewardBlock: lastRewardBlock,
-            accTokenPerShare: 0,
-            totCentStakedInPool: 0
-        });
+        poolInfo.lpToken = lpToken;
+        poolInfo.allocPoint = _allocPoint;
+        poolInfo.lastRewardBlock = lastRewardBlock;
+        poolInfo.accTokenPerShare = 0;
+        poolInfo.totCentStakedInPool = 0;
 
         _transferFrom(address(_msgSender()), address(this), _totRewardAmount);
         initialized = true;

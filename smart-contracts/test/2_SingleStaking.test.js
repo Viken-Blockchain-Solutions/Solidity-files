@@ -62,8 +62,6 @@ describe("Staking contract", function () {
         // initiatePool(uint256 _allocPoint, IERC20 _lpToken, uint256 _totRewardAmount)
         .initiatePool(1000, testERC20.address, 1500000)
       ).to.emit(staking, "PoolInitialized");
-      
-      expect(await staking.poolLength()).to.be.equal(1);
     });
   });
   describe("Pool Information", function () {
@@ -71,11 +69,8 @@ describe("Staking contract", function () {
       await testERC20.connect(owner).approve(staking.address, 1500000);
       await staking.connect(owner).initiatePool(1000, testERC20.address, 1500000)
     });
-    it("Should have the right amount of pools after pool initiation", async function () {
-      expect(await staking.poolLength()).to.be.equal(1);
-    });
     it("Should contain the correct data about the pool", async function () {
-      const PoolInfo = await staking.poolInfo(0);
+      const PoolInfo = await staking.poolInfo();
       expect(PoolInfo.lpToken).to.be.equal(testERC20.address);
       expect(PoolInfo.allocPoint.toString()).to.be.equal("1000");
       expect(PoolInfo.lastRewardBlock).to.not.be.undefined;
@@ -86,7 +81,6 @@ describe("Staking contract", function () {
     beforeEach(async function () {
       await testERC20.connect(owner).approve(staking.address, 1500000);
       await staking.connect(owner).initiatePool(1000, testERC20.address, 1500000)
-      expect(await staking.poolLength()).to.be.equal(1);
     });
     it("Should let User1 and User2 stake 5000 tokens each", async function () {
       const beforeContractBalance = await testERC20.balanceOf(staking.address);
