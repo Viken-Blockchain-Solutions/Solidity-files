@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
@@ -19,25 +20,21 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 *   4. User's `rewardDebt` gets updated.
 */
 
-contract SingleStaking is Context, Ownable, ReentrancyGuard {
+contract TicketMaster is Context, Ownable, Pausable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    address public dev;
-    uint256 public centPerBlock;
-    uint256 public totalAllocPoint = 0;
-    uint256 public startBlock;
-    uint256 public constant BONUS_MULTIPLIER = 0;
-    bool public initialized;
-
     /**
-     * @notice UserInfo Struct with the staking data of each user.
-     * @param amount The amount of CENT a user is staking.
-     * @param rewardDebt Reward debt.
+     * @notice Struct with the staking data of each user.
+     * @param totalShares The amount of CENT a user is staking.
+     * @param lastUserInteraction Block.timestamp of the last user interaction.
+     * @param sharesAtLastUserInteraction Total amount of shares the user had at their last interaction.
      */
     struct UserInfo {
-        uint256 amount;   
-        uint256 rewardDebt;
+        uint256 userShares;
+        uint256 lastDeposit;    
+        uint256 sharesAtLastInteraction;
+        uint256 lastUserInteraction;
     }
         
     /**
@@ -55,6 +52,15 @@ contract SingleStaking is Context, Ownable, ReentrancyGuard {
         uint256 totCentStakedInPool;
     }
     
+    IERC20 public immutable token; // Staking token
+
+    bool public initialized;
+    
+    address public feeAddress;
+    
+    uint256 public sharesPerBlock;
+    uint256 public startBlock;
+    uint256 public bonus_multiplier = 0;
     PoolInfo public poolInfo;
 
     mapping (address => UserInfo) public userInfo;
