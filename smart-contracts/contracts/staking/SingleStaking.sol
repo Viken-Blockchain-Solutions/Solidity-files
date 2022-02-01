@@ -61,6 +61,7 @@ contract TicketMaster is Context, Ownable, Pausable, ReentrancyGuard {
     uint256 public sharesPerBlock;
     uint256 public startBlock;
     uint256 public bonus_multiplier = 0;
+    
     PoolInfo public poolInfo;
 
     mapping (address => UserInfo) public userInfo;
