@@ -124,11 +124,16 @@ contract TicketVault is Context, Ownable {
 
     function withdraw(uint256 _id, uint256 _amount) external isUser(_id) returns (bool) {
         if (_amount >= usersMapping[_id][_msgSender()].totUserShares) revert NotEnoughShares();
+        if (vaultMapping[_id].status == Status.Collecting) {
+            require(_safeTransfer(_id, _msgSender(), _amount));
+            return true;
+        } 
+
         updateVault(_id);
         _distributeUserRewards(_id);
 
         if (block.timestamp <= usersMapping[_id][_msgSender()].lastDepositedTime.add(vaultMapping[_id].withdrawPenaltyPeriod)) {
-            require(_safeTransfer(_id, feeAddress, usersMapping[_id][_msgSender()].pendingRewards));
+            require(_safeTransfer(_id, feeAddress, usersMapping[_id][_msgSender()].pendingRewards), "failed Withdraw");
             require(_safeTransfer(_id, _msgSender(), _amount));
 
             usersMapping[_id][_msgSender()].pendingRewards = 0;

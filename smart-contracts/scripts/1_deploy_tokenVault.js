@@ -2,28 +2,29 @@ require("dotenv/config");
 
 async function main() {
     
-  const [deployer]  = await ethers.getSigners();
+  const [ deployer, fee ]  = await ethers.getSigners();
 
   console.log("Deploying contracts with the account:", deployer.address);
 
   const dev = `${process.env.DEV}`;
   
-  const Staking = await ethers.getContractFactory("SingleStaking");
-  const Token = await ethers.getContractFactory("testERC20");
+  const Vault = await ethers.getContractFactory("TicketVault");
+  const Token = await ethers.getContractFactory("CentaurifyToken");
   
-  const staking = await Staking.deploy(dev, 1000000000000000000n);
-  const token = await Token.deploy(1000000000000000000000000000n);
+  const vault = await Vault.deploy(fee.address);
+  const token = await Token.deploy();
 
 
   console.log(`
       ----------------------------------------------------------------------------------
       |    Deployment Status  :                                                          
       |       Contract owner  :                          ${deployer.address},
-      |       Address dev     :                          ${dev},
+      |       Fee address     :                          ${fee.address}
       |
+      |  ------------------------------------------------------------------------------
       |    Contract deployed  :
-      |       SingleStaking   :                          ${staking.address}
-      |       testERC20       :                          ${token.address} 
+      |       TicketVault     :                           ${vault.address}
+      |       Centaurify token:                          ${token.address} 
       |
       ----------------------------------------------------------------------------------
   `);
