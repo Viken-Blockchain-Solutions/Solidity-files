@@ -146,25 +146,35 @@ describe("TicketVault", function () {
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
       const userOneDeposit = await vault.connect(user1).deposit(0, this.fiveT.toString());
       const userTwoDeposit = await vault.connect(user2).deposit(0, this.fiveT.toString());
-      
+      await userOneDeposit;
+      await userTwoDeposit;
+
       const beforeVaultBalance = await cent.balanceOf(vault.address);
       const userOneInfo = await vault.usersMapping(0, user1.address);
       const userTwoInfo = await vault.usersMapping(0, user2.address);
       const userOneBeforeBalance = userOneInfo.totUserShares.toString();
       const userTwoBeforeBalance = userTwoInfo.totUserShares.toString();
+      console.log('Vault before Shares:', beforeVaultBalance.toString());
+      console.log('User One before Shares:', userOneBeforeBalance);
+      console.log('User Two before Shares:', userTwoBeforeBalance);
      
-      console.log(userOneBeforeBalance);
-      const userOneWithdraw = await vault.connect(user1).withdraw(0, this.fourT.toString());
+      expect(await vault.connect(user1).withdraw(0, this.fourT.toString()))
+      .to.emit(vault, 'Withdraw')
+        .withArgs(0, this.fourT.toString(), user1.address);
 
       const afterVaultBalance = await cent.balanceOf(vault.address);
       const userOneAfterInfo = await vault.usersMapping(0, user1.address);
       const userTwoAfterInfo = await vault.usersMapping(0, user2.address);
-      const userOneAfterBalance = userOneInfo.totUserShares.toString();
-      const userTwoAfterBalance = userTwoInfo.totUserShares.toString();
+      const userOneAfterBalance = userOneAfterInfo.totUserShares.toString();
+      const userTwoAfterBalance = userTwoAfterInfo.totUserShares.toString();
+  
+      console.log('Vault after Shares:', afterVaultBalance.toString());
+      console.log('User One after Shares:', userOneAfterBalance);
+      console.log('User Two after Shares:', userTwoAfterBalance);
 
-      expect(userOneAfterBalance).to.be.equal(userOneBeforeBalance.add(this.fourT.toString()));
+     // expect(userOneAfterBalance).to.be.equal(userOneBeforeBalance.toNumber().add(this.fourT.toString()));
       expect(userTwoAfterBalance).to.be.equal(userTwoBeforeBalance);
-      expect(afterVaultBalance).to.be.equal(userOneAfterShares.add(userTwoAfterShares));
+      expect(afterVaultBalance).to.be.equal(userOneAfterBalance.add(userTwoAfterBalance));
     });
 
   });

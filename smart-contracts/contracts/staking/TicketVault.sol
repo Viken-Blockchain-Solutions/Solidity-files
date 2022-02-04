@@ -17,6 +17,7 @@ contract TicketVault is Context, Ownable {
      */
     enum Status { Collecting, Started, Completed }
     
+    IERC20 public token;
     address public admin;
     address public feeAddress;
     uint256 public withdrawFee = 700; // 7%
@@ -24,7 +25,6 @@ contract TicketVault is Context, Ownable {
 
 
     struct Vault {
-        uint256 Id; // ID of the vault.
         IERC20 token; // token in vault.
         Status status; // vault status
         uint256 totalVaultShares; // total tokens deposited into Vault.
@@ -34,7 +34,7 @@ contract TicketVault is Context, Ownable {
         uint256 lastRewardBlock; // the last block rewards was updated.
         uint256 pendingRewards; // pending rewards for this vault.        
         uint256 remainingRewards; // remaining rewards for this vault.        
-        uint256 totalRewards; // amount of tokens to reward this vault.
+        uint256 totalVaultRewards; // amount of tokens to reward this vault.
         uint256 withdrawFeePeriod; // 12 weeks;
         uint256 withdrawPenaltyPeriod; // 14 days;
     }
@@ -46,25 +46,27 @@ contract TicketVault is Context, Ownable {
         uint256 pendingRewards;
     }
 
-    mapping (uint256 => Vault) public vaultMapping;
-    mapping (uint256 => mapping (address => User)) public usersMapping;
+    Vault public vault;
+    mapping (address => User) public usersMapping;
 
-    error TransferFailed();
+    error FailedInitVault();
+    error DepositFailed();
+    error WithdrawFailed();
     error NotStarted();
     error NotCollecting();
     error VaultCompleted();
     error NotEnoughShares();
     error NotAuthorized();
     
-    event VaultInitialized(uint256 indexed id, Status status, uint256 indexed startBlock, uint256 indexed stopBlock);
-    event Deposit(uint256 indexed id, uint256 amount, address user);
-    event Withdraw(uint256 indexed id, uint256 amount, address user);
-    event EarlyWithdraw(uint256 indexed id, uint256 amount, address user);
-    event Rewards(uint256 indexed id, address indexed reciever, uint256 amount);
-    event ValutCompleted(uint256 indexed _id);
+    event VaultInitialized();
+    event Deposit(uint256 amount, address user);
+    event Withdraw(uint256 amount, address user);
+    event EarlyWithdraw(uint256 amount, address user);
+    event Rewards(address indexed reciever, uint256 amount);
+    event ValutCompleted(IERC20 token, uint256 rewardsPerBlock, uint256 totalVaultRewards);
 
-    constructor(address _feeAddress) {
-        admin = _msgSender();
+    constructor(address _admin, address _feeAddress) {
+        admin = _admin;
         feeAddress = _feeAddress;
     }
 
@@ -83,34 +85,22 @@ contract TicketVault is Context, Ownable {
         _;
     }
 
-    function initializeVault(IERC20 _token, uint256 _id, uint256 _totVaultRewards) external onlyOwner {
-        
-        IERC20 token = _token;
-        
-        vaultMapping[_id] = Vault(
-            _id,
-            token,
-            Status.Collecting,
-            0, // totalVaultShares
-            0,  // starttime
-            0, // stoptime
-            4e18, // 4 tokens rewarded Per Block
-            block.number, // lastRewardBlock
-            0, // pendingRewards
-            _totVaultRewards, // remainingRewards
-            _totVaultRewards, // total reward in vault
-            0,
-            0
-        );
+    function initializeVault(IERC20 _token, uint256 _rewardsPerBlock, uint256 _totVaultRewards) external onlyOwner {
+        Vault.token = _token;
+        Vault.status = Status.Collecting;
+        Vault.rewardsPerBlock = _rewardsPerBlock;
+        Vault.lastRewardBlock =  block.number;
+        Vault.remainingRewards =  _totVaultRewards;
+        Vault.totalVaultRewards =  _totVaultRewards;
 
-        _safeTransferFrom(_id, _msgSender(), address(this), _totVaultRewards);
+        if(!_safeTransferFrom(_msgSender(), address(this), _totVaultRewards)) revert FailedInitVault();
 
-        emit VaultInitialized(_id, vaultMapping[_id].status, vaultMapping[_id].startBlock, vaultMapping[_id].stopBlock);
+        emit VaultInitialized(Vault.token, Vault.rewardsPerBlock, Vault.totalVaultRewards);
     }
 
-    function deposit(uint256 _id, uint256 _amount) external isCollecting(_id) returns (bool) {
+    function deposit(uint256 _amount) external isCollecting(_id) returns (bool) {
 
-        if (!_safeTransferFrom(_id , _msgSender(), address(this), _amount)) revert TransferFailed();
+        if (!_safeTransferFrom(_id , _msgSender(), address(this), _amount)) revert DepositFailed();
 
         vaultMapping[_id].totalVaultShares += _amount;
 
@@ -122,10 +112,11 @@ contract TicketVault is Context, Ownable {
         return true;
     }
 
-    function withdraw(uint256 _id, uint256 _amount) external isUser(_id) returns (bool) {
+    function withdraw(uint256 _amount) external isUser(_id) returns (bool) {
         if (_amount >= usersMapping[_id][_msgSender()].totUserShares) revert NotEnoughShares();
+
         if (vaultMapping[_id].status == Status.Collecting) {
-            require(_safeTransfer(_id, _msgSender(), _amount));
+            require(_safeTransfer(_id, _msgSender(), _amount), "withdraw failed");
             return true;
         } 
 
@@ -169,12 +160,16 @@ contract TicketVault is Context, Ownable {
         return true;
     }
 
-    function _safeTransferFrom(uint256 _id, address _from, address _to, uint256 _amount) private returns (bool) {
+    function _withdraw(address _to, uint256 _amount) internal returns (bool) {
+        if(!_safeTransfer(_id, _to, _amount) revert WithdrawFailed();
+    }
+
+    function _safeTransferFrom(address _from, address _to, uint256 _amount) private returns (bool) {
         vaultMapping[_id].token.safeTransferFrom(_from, _to, _amount);
         return true;
     }
 
-    function _safeTransfer(uint256 _id, address _to, uint256 _amount) private returns (bool) {
+    function _safeTransfer(address _to, uint256 _amount) private returns (bool) {
         vaultMapping[_id].token.safeTransfer(_to, _amount);
         return true;
     }
@@ -183,7 +178,7 @@ contract TicketVault is Context, Ownable {
      * @notice Updates the Vaults pending rewards.
      * @param _id The vault to update.
      */
-    function updateVault(uint256 _id) public {
+    function updateVault() public {
         if (block.number > vaultMapping[_id].stopBlock) revert VaultCompleted();
         if (vaultMapping[_id].remainingRewards <= 0) revert VaultCompleted();
 
