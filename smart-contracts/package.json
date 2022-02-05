@@ -10,12 +10,12 @@
     "compile": "npx hardhat compile",
     "tasks": "npx hardhat",
     "localnode": "npx hardhat node",
-    "test_local": "npx hardhat --network localhost test",
+    "test_local": "npx hardhat test --network localhost",
     "test": "npx hardhat run test --network ganache",
     "ganache": "ganache-cli -m 'they caution recipe beauty force smile game family obvious include mean test'",
-    "deploy_local": "npx hardhat run scripts/1_deploy_tokenVault.js --network localhost",
-    "deploy_rinkeby": "npx hardhat run scripts/1_deploy_to_rinkeby.js  --network rinkeby",
-    "deploy_ropsten": "npx hardhat run scripts/1_deploy_to_rinkeby.js --network ropsten"
+    "deploy_local": "npx hardhat run scripts/1_deploy_main.js --network localhost",
+    "deploy_rinkeby": "npx hardhat run scripts/1_deploy_to_main.js  --network rinkeby",
+    "deploy_ropsten": "npx hardhat run scripts/1_deploy_to_main.js --network ropsten"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
