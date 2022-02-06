@@ -2,7 +2,6 @@
 pragma solidity ^0.8.11;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -16,13 +15,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 *        2m cent divided on three months is 3.36 cent per block (3360000000000000000 wei)
 */
 contract TicketVault is Context, Ownable {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    /**
-     * @notice enum Status contains multiple status.
-     * The different "statuses" are represented as index numbers.
-     */
+    /// @notice enum Status contains multiple status.
     enum Status { Collecting, Started, Completed }
     
     IERC20 public token;
@@ -45,7 +40,7 @@ contract TicketVault is Context, Ownable {
         uint256 withdrawPenaltyPeriod; // 14 days;
     }
 
-    struct User {
+    struct UserInfo {
         address user;
         uint256 totUserShares;
         uint256 lastDepositedTime;
@@ -53,7 +48,7 @@ contract TicketVault is Context, Ownable {
     }
 
     Vault public vault;
-    mapping (address => User) public users;
+    mapping (address => UserInfo) public users;
 
     error FailedToInitVault();
     error AlreadyInitialized();
@@ -70,13 +65,13 @@ contract TicketVault is Context, Ownable {
     error VaultCompleted();
     error RewardsCompleted();
    
-    
     event VaultInitialized();
     event Deposit(uint256 amount, address indexed user);
     event Withdraw(uint256 amount, address indexed user);
     event EarlyWithdraw(uint256 amount, address indexed user);
     event Rewards(uint256 amount, address indexed reciever);
-    event ValutCompleted(uint256 totalVaultRewards, uint256 remainingRewards);
+    event VaultStarted();
+    event VaultFinished();
 
     constructor(IERC20 _token, address _admin, address _feeAddress) {
         token = _token;
@@ -111,7 +106,7 @@ contract TicketVault is Context, Ownable {
     function initializeVault(uint256 rewardsPerBlock, uint256 totVaultRewards)
         external 
         onlyOwner
-        notInitialized()
+        notInitialized
     {
         vault.status = Status.Collecting;
         vault.rewardsPerBlock = rewardsPerBlock;
@@ -124,7 +119,10 @@ contract TicketVault is Context, Ownable {
         emit VaultInitialized();
     }
 
-    function deposit(uint256 _amount) external returns (bool) {
+    /// @notice Deposit funds into vault.
+    /// @param _amount The amount to deposit.
+    /// @return true if vaild.
+    function deposit(uint256 _amount) external isCollecting returns (bool) {
         if (!_deposit(_msgSender(), _amount)) revert DepositFailed();
 
         vault.totalVaultShares += _amount;
@@ -132,11 +130,16 @@ contract TicketVault is Context, Ownable {
         users[_msgSender()].totUserShares += _amount;
         users[_msgSender()].lastDepositedTime = block.timestamp;
 
+        updateVault();
+
         emit Deposit(_amount, _msgSender());
         return true;
     }
-
-    function withdraw(uint256 _amount) external isUser() returns (bool) {
+    
+    /// @notice Withdraw funds from vault.
+    /// @param _amount The amount to withdraw from the vault.
+    /// @return true if vaild.
+    function withdraw(uint256 _amount) external isUser returns (bool) {
         if (users[_msgSender()].totUserShares < _amount) revert NotEnoughShares();
 
         uint256 _shares = _amount;
@@ -190,54 +193,20 @@ contract TicketVault is Context, Ownable {
         }
     }
 
-    function _deposit(address _from, uint256 _amount) internal returns (bool) {
-        if(!_safeTransferFrom(address(_from), address(this), _amount)) revert DepositFailed();
-
-        emit Deposit(_amount, _from);
-        return true;
-    }
-
-    function _withdraw(address _to, uint256 _amount) internal returns (bool) {
-        if(!_safeTransfer(address(_to), _amount)) revert WithdrawFailed();
-
-        emit Withdraw(_amount, _to);
-        return true;
-    }
-
-    function _calculateFee(uint256 _amount) internal view returns(uint256 feeAmount, uint256 withdrawAmount) {
-        feeAmount = _amount * withdrawFee / 1000;
-        withdrawAmount = _amount - feeAmount; 
-    }
-
-    function _safeTransfer(address _to, uint256 _amount) private returns (bool) {
-        token.safeTransfer(_to, _amount);
-        return true;
-    }
-
-    function _safeTransferFrom(address _from, address _to, uint256 _amount) private returns (bool) {
-        token.safeTransferFrom(_from, _to, _amount);
-        return true;
-    }
-    
-    /**
-     * @notice Updates the Vaults pending rewards.
-     */
-    function updateVault() public {
-        if (vault.status == Status.Completed) revert VaultCompleted();
+    /// @notice Updates the Vaults pending rewards.
+    function updateVault() public isStarted {
+        //if (vault.status == Status.Completed) revert VaultCompleted();
         if (vault.remainingRewards <= 0) revert RewardsCompleted();
 
-        _pendingRewards();
-
-        if (block.number == vault.stopBlock) {
+        if (block.number >= vault.stopBlock) {
             vault.status = Status.Completed;
-            emit ValutCompleted(vault.totalVaultRewards, vault.remainingRewards);
+            emit VaultFinished();
         } 
 
-    
-        
+        _pendingRewards();
     }
 
-    // calculates and updates the pending rewards of the vault.
+    /// @notice Calculates and updates the pending rewards of the vault.
     function _pendingRewards() internal {
         uint256 _currentRewards = vault.rewardsPerBlock * (block.number - vault.lastRewardBlock);
 
@@ -252,53 +221,93 @@ contract TicketVault is Context, Ownable {
         vault.lastRewardBlock = block.number;
     }
 
-    function _distributeUserRewards() private {
+    /// @notice Internal function to distribute pending rewards to the user
+    function _distributeUserRewards() internal {
         uint256 vaultRewards = vault.pendingRewards;
 
         uint256 shareOfReward = users[_msgSender()].totUserShares / vault.totalVaultShares * 100;
-        uint256 userReward = vaultRewards.mul(shareOfReward).div(100);
+        uint256 userReward = (vaultRewards * shareOfReward) / 100;
 
         users[_msgSender()].pendingRewards += userReward;
         vault.pendingRewards -=  userReward;
     }
 
-    /**
-     * @notice A setter function to set the status.
-     */
-    function startVault(uint256 _stopBlock) external onlyOwner {
+    /// @notice A setter function to set the status.
+    function startVault(uint256 _stopBlock) external isCollecting onlyOwner {
         vault.status = Status.Started;
         vault.startBlock = block.number;
         vault.stopBlock = _stopBlock;
         vault.lastRewardBlock = block.number;
-        vault.withdrawFeePeriod = 12 weeks; // fee period 
+        vault.withdrawFeePeriod = 13 weeks; // fee period 
         vault.withdrawPenaltyPeriod = 14 days; // penalty period
 
+        emit VaultStarted();
     }
 
-    /**
-     * @notice A setter function to set the status.
-     */
-    function startCollecting() external onlyOwner {
-        vault.status = Status.Collecting;
-    }
-
-    /**
-     * @notice A setter function to set the status.
-     */
-    function stopVault() external onlyOwner {
+    /// @notice A setter function to set the status.
+    function stopVault() external isStarted onlyOwner {
+        updateVault();
         vault.status = Status.Completed;
         vault.stopBlock = block.number;
+
+        emit  VaultFinished();
     }
 
-    function claim() external isUser() isStarted() returns (uint256 amount){
+    /// @notice A user can claim their pendingRewards.
+    function claim() external isUser isStarted returns (uint256 amount){
         updateVault();
         _distributeUserRewards();
+        
         amount = users[_msgSender()].pendingRewards;
         users[_msgSender()].pendingRewards = 0;
 
-        require(_safeTransfer(_msgSender(), amount));
+        require(_withdraw(_msgSender(), amount));
 
         emit Rewards(amount, _msgSender());
     }
 
+    function _calculateFee(uint256 _amount)
+        internal 
+        view 
+        returns(
+            uint256 feeAmount,
+            uint256 withdrawAmount
+        ) 
+    {
+        feeAmount = _amount * withdrawFee / 10000;
+        withdrawAmount = _amount - feeAmount; 
+    }
+
+    /// @notice Internal function to deposit funds to vault.
+    /// @param _from The from address that deposits the funds.
+    /// @param _amount The amount to be deposited.
+    /// @return true if valid.
+    function _deposit(address _from, uint256 _amount) private returns (bool) {
+        if(!_safeTransferFrom(address(_from), address(this), _amount)) revert DepositFailed();
+
+        emit Deposit(_amount, _from);
+        return true;
+    }
+
+    /// @notice Internal function to withdraw funds from the vault.
+    /// @param _to The address that receives the withdrawn funds.
+    /// @param _amount The amount to be withdrawn.
+    /// @return true if valid.
+    function _withdraw(address _to, uint256 _amount) private returns (bool) {
+        if(!_safeTransfer(address(_to), _amount)) revert WithdrawFailed();
+
+        emit Withdraw(_amount, _to);
+        return true;
+    }
+
+    function _safeTransfer(address _to, uint256 _amount) private returns (bool) {
+        token.safeTransfer(_to, _amount);
+        return true;
+    }
+
+    function _safeTransferFrom(address _from, address _to, uint256 _amount) private returns (bool) {
+        token.safeTransferFrom(_from, _to, _amount);
+        return true;
+    }
+    
 }
