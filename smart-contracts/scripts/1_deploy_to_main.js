@@ -6,25 +6,26 @@ async function main() {
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  const dev = `${process.env.DEV}`;
+  const devAddr = `${process.env.DEV}`;
   
-  const Vault = await ethers.getContractFactory("TicketVault");
+  const Vault = await ethers.getContractFactory("TicketVault", );
   const Token = await ethers.getContractFactory("CentaurifyToken");
   
-  const vault = await Vault.deploy(fee.address);
   const token = await Token.deploy();
+  const vault = await Vault.deploy(token.address, devAddr, fee.address);
 
 
   console.log(`
       ----------------------------------------------------------------------------------
       |    Deployment Status  :                                                          
       |       Contract owner  :                          ${deployer.address},
+      |       Admin address   :                          ${devAddr},
       |       Fee address     :                          ${fee.address}
       |
       |  ------------------------------------------------------------------------------
       |    Contract deployed  :
-      |       TicketVault     :                           ${vault.address}
       |       Centaurify token:                          ${token.address} 
+      |       TicketVault     :                          ${vault.address}
       |
       ----------------------------------------------------------------------------------
   `);

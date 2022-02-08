@@ -123,9 +123,8 @@ contract TicketVault is Context, Ownable {
         users[_msgSender()].totUserShares += _amount;
         users[_msgSender()].lastDepositedTime = block.timestamp;
 
-        updateVault();
+        //updateVault();
 
-        emit Deposit(_amount, _msgSender());
         return true;
     }
     
@@ -148,6 +147,8 @@ contract TicketVault is Context, Ownable {
             require(_withdraw(feeAddress, _feeAmount));
             require(_withdraw(_msgSender(), _withdrawAmount));
             
+            emit EarlyWithdraw(_amount, _msgSender());
+
             return true;
         } 
 
