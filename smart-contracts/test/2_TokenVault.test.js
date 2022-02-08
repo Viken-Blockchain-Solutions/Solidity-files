@@ -45,7 +45,7 @@ describe("TicketVault", function () {
     user2Balance = await cent.balanceOf(user2.address);
   });
 
-  describe("Deployment", function () {
+  describe("Deployment :", function () {
     it("Should set the right owner, admin and fee address of vault contract", async function () {
       expect(await vault.owner()).to.equal(owner.address);
       expect(await vault.admin()).to.equal(admin.address);
@@ -58,7 +58,7 @@ describe("TicketVault", function () {
     });
   });
 
-  describe("Contract Administration", function () {
+  describe("Contract Administration :", function () {
     it("Should let owner initiate a new vault", async function () {
       await cent
         .connect(owner)
@@ -73,7 +73,7 @@ describe("TicketVault", function () {
     });
   });
 
-  describe("Vault Information", function () {
+  describe("Vault Information :", function () {
     beforeEach(async function () {
       await cent.connect(owner).approve(vault.address, this.totReward.toString());
       await vault.connect(owner).initializeVault(
@@ -83,16 +83,17 @@ describe("TicketVault", function () {
     });
     it("Should contain the correct data about the vault", async function () {
       const VaultInfo = await vault.vault();
-      console.log(vault.vault.token());
-      console.log(VaultInfo.status);
-      //expect(vault.token).to.be.equal(cent.address);
+      const token = await vault.token();
+
+      expect(token).to.be.equal(cent.address);
       expect(VaultInfo.status).to.be.equal(0);
       expect(VaultInfo.rewardsPerBlock.toString()).to.be.equal(this.rewardsPerBlock.toString());
-      expect(VaultInfo.totalRewards).to.be.equal(this.totReward.toString());
+      expect(VaultInfo.remainingRewards.toString()).to.be.equal(this.totReward.toString());
+      expect(VaultInfo.totalVaultRewards.toString()).to.be.equal(this.totReward.toString());
     });
   });
 
-  describe("Stake & stakeholders", function () {
+  describe("Stake & stakeholders :", function () {
     beforeEach(async function () {
       await cent.connect(owner).approve(vault.address, this.totReward.toString());
       await vault.connect(owner).initializeVault(
@@ -100,7 +101,7 @@ describe("TicketVault", function () {
         this.totReward.toString()
       );
     });
-    it("Should let User1 and User2 stake 5000 tokens each", async function () {
+    it("Should let User1 and User2 deposit 5000 tokens each", async function () {
       const beforeVaultBalance = await cent.balanceOf(vault.address);
       const beforeUser1Balance = await cent.balanceOf(user1.address);
       const beforeUser2Balance = await cent.balanceOf(user2.address);
@@ -126,8 +127,8 @@ describe("TicketVault", function () {
     it("Should have the correct userInfo after deposit", async function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
-      const userOneDeposit = await vault.connect(user1).deposit(this.fiveT.toString());
-      const userTwoDeposit = await vault.connect(user2).deposit(this.fiveT.toString());
+      await vault.connect(user1).deposit(this.fiveT.toString());
+      await vault.connect(user2).deposit(this.fiveT.toString());
       
       const userOneInfo = await vault.users(user1.address);
       const userTwoInfo = await vault.users(user2.address);
@@ -141,52 +142,47 @@ describe("TicketVault", function () {
       expect(userOneInfo.pendingRewards).to.be.equal(0);
       expect(userTwoInfo.pendingRewards).to.be.equal(0);
     });
-    it("Should be correct total amount of shares in the vault", async function () {
+    it("Should have correct total amount of shares in the vault after deposit", async function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
       await vault.connect(user1).deposit(this.fiveT.toString());
       await vault.connect(user2).deposit(this.fiveT.toString());
       
-      //const VaultInfo = await vault.vault;
+      const VaultInfo = await vault.vault();
       const vaultContractBalance = await cent.balanceOf(vault.address);
 
-      expect(vault.totalVaultShares).to.be.equal("10000000000000000000000");
+      expect(VaultInfo.totalVaultShares.toString()).to.be.equal("10000000000000000000000");
       expect(vaultContractBalance).to.be.equal("2010000000000000000000000");
     });
     it("Should let User1 withdraw 4000 tokens", async function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
-      const userOneDeposit = await vault.connect(user1).deposit(this.fiveT.toString());
-      const userTwoDeposit = await vault.connect(user2).deposit(this.fiveT.toString());
-      await userOneDeposit;
-      await userTwoDeposit;
-
+      await vault.connect(user1).deposit(this.fiveT.toString());
+      await vault.connect(user2).deposit(this.fiveT.toString());
+  
+      // get vault and user balances before withdraw.
       const beforeVaultBalance = await cent.balanceOf(vault.address);
       const userOneInfo = await vault.users(user1.address);
       const userTwoInfo = await vault.users(user2.address);
-      const userOneBeforeBalance = userOneInfo.totUserShares.toString();
-      const userTwoBeforeBalance = userTwoInfo.totUserShares.toString();
-      console.log('Vault before Shares:', beforeVaultBalance.toString());
-      console.log('User One before Shares:', userOneBeforeBalance);
-      console.log('User Two before Shares:', userTwoBeforeBalance);
-     
+      const userOneBeforeShares = userOneInfo.totUserShares;
+      const userTwoBeforeShares = userTwoInfo.totUserShares;
+
+      // execute a withdraw from user 1.
       expect(await vault.connect(user1).withdraw(this.fourT.toString()))
       .to.emit(vault, 'EarlyWithdraw')
         .withArgs(this.fourT.toString(), user1.address);
 
+      // get vault and user balances After withdraw.
       const afterVaultBalance = await cent.balanceOf(vault.address);
       const userOneAfterInfo = await vault.users(user1.address);
       const userTwoAfterInfo = await vault.users(user2.address);
-      const userOneAfterBalance = userOneAfterInfo.totUserShares.toString();
-      const userTwoAfterBalance = userTwoAfterInfo.totUserShares.toString();
-  
-      console.log('Vault after Shares:', afterVaultBalance.toString());
-      console.log('User One after Shares:', userOneAfterBalance);
-      console.log('User Two after Shares:', userTwoAfterBalance);
+      const userOneAfterShares = userOneAfterInfo.totUserShares;
+      const userTwoAfterShares = userTwoAfterInfo.totUserShares;
 
-     // expect(userOneAfterBalance).to.be.equal(userOneBeforeBalance.toNumber().add(this.fourT.toString()));
-     // expect(userTwoAfterBalance).to.be.equal(userTwoBeforeBalance);
-      // expect(afterVaultBalance).to.be.equal(userOneAfterBalance.toNumber().add(userTwoAfterBalance));
+      expect(userOneAfterShares.toString()).to.be.equal("1000000000000000000000");
+      expect(userTwoAfterShares).to.be.equal(userTwoBeforeShares);
+      expect(beforeVaultBalance.toString()).to.be.equal("2010000000000000000000000");
+      expect(afterVaultBalance.toString()).to.be.equal("2006000000000000000000000");
     });
 
   });
