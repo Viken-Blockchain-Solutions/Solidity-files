@@ -13,24 +13,23 @@ const {
 
 describe("TicketVault", function () {
 
-  let vault;
-  let cent;
-  let owner;
-  let admin;
-  let fee;
-  let user1;
-  let user1Balance;
-  let user2;
-  let user2Balance;
+  let vault, cent, owner, admin, fee, user1, user2, user3, user4, user5, user6;
+  let user7, user8, user9, user10;
+  
+  let user1Balance, user2Balance;
 
   beforeEach(async function () {
     // Get the ContractFactory and Signers here.
-    [owner, admin, fee, user1, user2] = await ethers.getSigners();
+    [owner, admin, fee, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
 
     this.rewardsPerBlock = new BN("3381230700000000000");
     this.totReward = new BN("2000000000000000000000000");
-    this.fiveT = new BN("5000000000000000000000");
-    this.fourT = new BN("4000000000000000000000");
+    this.sevenT = new BN("70000000000000000000000");
+    this.sixT = new BN("60000000000000000000000");
+    this.fiveT = new BN("50000000000000000000000");
+    this.fourT = new BN("40000000000000000000000");
+    this.threeT = new BN("30000000000000000000000");
+
     CENTContract = await ethers.getContractFactory("CentaurifyToken");
     Contract = await ethers.getContractFactory("TicketVault");
 
@@ -93,7 +92,7 @@ describe("TicketVault", function () {
     });
   });
 
-  describe("Stake & stakeholders :", function () {
+  describe("While Collecting: Vault & Stakeholders.", function () {
     beforeEach(async function () {
       await cent.connect(owner).approve(vault.address, this.totReward.toString());
       await vault.connect(owner).initializeVault(
@@ -120,9 +119,9 @@ describe("TicketVault", function () {
       const afterUser1Balance = await cent.balanceOf(user1.address);
       const afterUser2Balance = await cent.balanceOf(user2.address);
       
-      expect(afterUser1Balance).to.be.equal(beforeUser1Balance.sub("5000000000000000000000"));
-      expect(afterUser2Balance).to.be.equal(beforeUser2Balance.sub("5000000000000000000000"));
-      expect(afterVaultBalance).to.be.equal(beforeVaultBalance.add("10000000000000000000000"));
+      expect(afterUser1Balance).to.be.equal(beforeUser1Balance.sub("50000000000000000000000"));
+      expect(afterUser2Balance).to.be.equal(beforeUser2Balance.sub("50000000000000000000000"));
+      expect(afterVaultBalance).to.be.equal(beforeVaultBalance.add("100000000000000000000000"));
     });
     it("Should have the correct userInfo after deposit", async function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
@@ -151,10 +150,10 @@ describe("TicketVault", function () {
       const VaultInfo = await vault.vault();
       const vaultContractBalance = await cent.balanceOf(vault.address);
 
-      expect(VaultInfo.totalVaultShares.toString()).to.be.equal("10000000000000000000000");
-      expect(vaultContractBalance).to.be.equal("2010000000000000000000000");
+      expect(VaultInfo.totalVaultShares.toString()).to.be.equal("100000000000000000000000");
+      expect(vaultContractBalance).to.be.equal("2100000000000000000000000");
     });
-    it("Should let User1 withdraw 4000 tokens", async function () {
+    it("Should let User1 withdraw 40000 tokens", async function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
       await vault.connect(user1).deposit(this.fiveT.toString());
@@ -179,11 +178,74 @@ describe("TicketVault", function () {
       const userOneAfterShares = userOneAfterInfo.totUserShares;
       const userTwoAfterShares = userTwoAfterInfo.totUserShares;
 
-      expect(userOneAfterShares.toString()).to.be.equal("1000000000000000000000");
+      expect(userOneAfterShares.toString()).to.be.equal("10000000000000000000000");
       expect(userTwoAfterShares).to.be.equal(userTwoBeforeShares);
-      expect(beforeVaultBalance.toString()).to.be.equal("2010000000000000000000000");
-      expect(afterVaultBalance.toString()).to.be.equal("2006000000000000000000000");
+      expect(beforeVaultBalance.toString()).to.be.equal("2100000000000000000000000");
+      expect(afterVaultBalance.toString()).to.be.equal("2060000000000000000000000");
     });
 
   });
+
+  describe("While Started: Vault and Stakeholders", function () {
+
+    beforeEach(async function () {
+      // transfer tokens to testusers.
+      await cent.transfer(user3.address, this.threeT.toString());
+      await cent.transfer(user4.address, this.fourT.toString());
+      await cent.transfer(user5.address, this.fiveT.toString());
+      await cent.transfer(user6.address, this.sixT.toString());
+      await cent.transfer(user7.address, this.sevenT.toString());
+      
+      // approve vault to deposit tokens.
+      await cent.connect(user1).approve(vault.address, this.fiveT.toString());
+      await cent.connect(user2).approve(vault.address, this.fiveT.toString());
+      await cent.connect(user3).approve(vault.address, this.threeT.toString());
+      await cent.connect(user4).approve(vault.address, this.fourT.toString());
+      await cent.connect(user5).approve(vault.address, this.fiveT.toString());
+      await cent.connect(user6).approve(vault.address, this.sixT.toString());
+      await cent.connect(user7).approve(vault.address, this.sevenT.toString());
+      
+      // approve and initialize the vault.
+      await cent.connect(owner).approve(vault.address, this.totReward.toString());
+      await vault.connect(owner).initializeVault(
+        this.rewardsPerBlock.toString(),
+        this.totReward.toString()
+      );
+
+      //Users deposit tokens in vault.
+      await vault.connect(user1).deposit(this.fiveT.toString());
+      await vault.connect(user2).deposit(this.fiveT.toString());
+      await vault.connect(user3).deposit(this.threeT.toString());
+      await vault.connect(user4).deposit(this.fourT.toString());
+      await vault.connect(user5).deposit(this.fiveT.toString());
+      await vault.connect(user6).deposit(this.sixT.toString());
+      await vault.connect(user7).deposit(this.sevenT.toString());
+
+    });
+
+    it("Should let the owner set to status Started :", async function () {
+      expect(await vault.connect(owner).startVault(1500))
+        .to.emit(vault, "VaultStarted")
+      
+      await vault.connect(owner).updateVault();
+      
+      const VaultInfo = await vault.vault();
+      console.log(`
+        VaultInfo :
+              status                  :        ${VaultInfo.status},
+              totalVaultShares        :        ${VaultInfo.totalVaultShares.toString()},
+              startBlock              :        ${VaultInfo.startBlock.toString()},
+              stopBlock               :        ${VaultInfo.stopBlock.toString()},   
+              rewardsPerBlock         :        ${VaultInfo.rewardsPerBlock.toString()},
+              lastRewardBlock         :        ${VaultInfo.lastRewardBlock.toString()},
+              pendingRewards          :        ${VaultInfo.pendingRewards.toString()},
+              remainingRewards        :        ${VaultInfo.remainingRewards.toString()},
+              totalVaultRewards       :        ${VaultInfo.totalVaultRewards.toString()},
+              withdrawFeePeriod       :        ${VaultInfo.withdrawFeePeriod.toString()},
+              withdrawPenaltyPeriod   :        ${VaultInfo.withdrawPenaltyPeriod.toString()}
+      `);
+    });
+
+  });
+
 });
