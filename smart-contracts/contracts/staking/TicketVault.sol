@@ -14,7 +14,6 @@ contract TicketVault is Context, Ownable {
     enum Status { Collecting, Started, Completed }
     
     IERC20 public token;
-    address public admin;
     address public feeAddress;
     uint256 public constant withdrawFee = 700; // 7%
     bool public initialized;
@@ -37,6 +36,7 @@ contract TicketVault is Context, Ownable {
         address user;
         uint256 totUserShares;
         uint256 lastDepositedTime;
+        uint256 lastClaimTime;
         uint256 pendingRewards;
     }
 
@@ -47,11 +47,13 @@ contract TicketVault is Context, Ownable {
     error AlreadyInitialized();
     error NotAuthorized();
     error NotEnoughShares();
+    error JustClaimed();
 
     error DepositFailed();
     error WithdrawFailed();
     error CalculateFeesFailed();
     error WithdrawFeesFailed();
+    error RewardsLow();
    
     error NotStarted();
     error NotCollecting();
@@ -59,16 +61,15 @@ contract TicketVault is Context, Ownable {
     error RewardsCompleted();
    
     event VaultInitialized();
-    event Deposit(uint256 amount, address indexed user);
-    event Withdraw(uint256 amount, address indexed user);
-    event EarlyWithdraw(uint256 amount, address indexed user);
-    event Rewards(uint256 amount, address indexed reciever);
+    event Deposit(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+    event EarlyWithdraw(address indexed user, uint256 amount, uint256 feeAmount);
+    event Rewards(address indexed user, uint256 amount);
     event VaultStarted();
     event VaultFinished();
 
-    constructor(IERC20 _token, address _admin, address _feeAddress) {
+    constructor(IERC20 _token, address _feeAddress) {
         token = _token;
-        admin = _admin;
         feeAddress = _feeAddress;
     }
     
@@ -77,6 +78,12 @@ contract TicketVault is Context, Ownable {
             revert AlreadyInitialized();
         _;
         initialized = true;
+    }
+
+    modifier canClaim() {
+        uint256 nextClaim = users[_msgSender()].lastClaimTime + 1 days;
+        if (block.timestamp < nextClaim) revert JustClaimed();
+        _;
     }
 
     modifier isUser() {
@@ -122,9 +129,7 @@ contract TicketVault is Context, Ownable {
         users[_msgSender()].user = address(_msgSender());
         users[_msgSender()].totUserShares += _amount;
         users[_msgSender()].lastDepositedTime = block.timestamp;
-
-        //updateVault();
-
+        
         return true;
     }
     
@@ -144,10 +149,10 @@ contract TicketVault is Context, Ownable {
 
             (uint256 _feeAmount, uint256 _withdrawAmount) = _calculateFee(_shares);
             
-            require(_withdraw(feeAddress, _feeAmount));
+            if (!_withdraw(feeAddress, _feeAmount)) revert WithdrawFeesFailed();
             require(_withdraw(_msgSender(), _withdrawAmount));
             
-            emit EarlyWithdraw(_amount, _msgSender());
+            emit EarlyWithdraw(_msgSender(), _withdrawAmount, _feeAmount);
 
             return true;
         } 
@@ -155,17 +160,18 @@ contract TicketVault is Context, Ownable {
         // if Vault status is started (ongoing).
         // Pay 7% withdraw fee from stake and reward before withdraw.
         if (vault.status == Status.Started) {
-            _distributeUserRewards;
+            updateVault();
+            _distributeUserRewards();
 
             uint256 _userRewards = users[_msgSender()].pendingRewards;
             users[_msgSender()].pendingRewards = 0;
 
-            (uint256 feeAmount, uint256 withdrawAmount) = _calculateFee(_shares + _userRewards);
+            (uint256 _feeAmount, uint256 _withdrawAmount) = _calculateFee(_shares + _userRewards);
             
-            require(_withdraw(feeAddress, feeAmount));
-            require(_withdraw(_msgSender(), withdrawAmount));
+            if(!_withdraw(feeAddress, _feeAmount)) revert WithdrawFeesFailed();
+            require(_withdraw(_msgSender(), _withdrawAmount));
 
-            emit EarlyWithdraw(_amount, _msgSender());
+            emit EarlyWithdraw(_msgSender(), _withdrawAmount, _feeAmount);
 
             return true;
         }
@@ -173,31 +179,31 @@ contract TicketVault is Context, Ownable {
         // if Vault status is completed (finished).
         // Withdraw stake and rewards without extra fees.
         if (vault.status == Status.Completed) {
+            updateVault();
+            _distributeUserRewards();
             uint256 _userRewards = users[_msgSender()].pendingRewards;
             users[_msgSender()].pendingRewards = 0;
             
             uint256 withdrawAmount = _shares + _userRewards;
-            require(_withdraw(_msgSender(), withdrawAmount));
+            if(!_withdraw(_msgSender(), withdrawAmount)) revert WithdrawFailed();
 
             return true;
         }
 
-        else {
-            revert WithdrawFailed();
-        }
+        return true;
     }
 
     /// @notice Updates the Vaults pending rewards.
-    function updateVault() public isStarted {
+    function updateVault() internal isStarted {
         //if (vault.status == Status.Completed) revert VaultCompleted();
-        if (vault.remainingRewards <= 0) revert RewardsCompleted();
+        if (vault.remainingRewards <= uint256(4e18)) revert RewardsLow();
 
         if (block.number >= vault.stopBlock) {
             vault.status = Status.Completed;
             emit VaultFinished();
         } 
 
-        _pendingRewards();
+        _pendingVaultRewards();
     }
 
     /// @notice A setter function to set the status.
@@ -214,6 +220,7 @@ contract TicketVault is Context, Ownable {
 
     /// @notice A setter function to set the status.
     function stopVault() external isStarted onlyOwner {
+        updateVault();
         vault.status = Status.Completed;
         vault.stopBlock = block.number;
 
@@ -221,31 +228,36 @@ contract TicketVault is Context, Ownable {
     }
 
     /// @notice A user can claim their pendingRewards.
-    function claim() external isUser isStarted returns (uint256 amount){
+    function claim() external isUser isStarted canClaim returns (uint256 amount) {
         updateVault();
         _distributeUserRewards();
         
         amount = users[_msgSender()].pendingRewards;
         users[_msgSender()].pendingRewards = 0;
 
-        require(_safeTransfer(_msgSender(), amount));
+        require(_withdraw(_msgSender(), amount));
+        users[_msgSender()].lastClaimTime = block.timestamp;
 
-        emit Rewards(amount, _msgSender());
+        emit Rewards(_msgSender(), amount);
     }
 
     /// @notice Get UserInformation.
-    /// @return user informatin from users mapping.
-    function userInfo() external view returns (UserInfo memory) {
+    /// @return users Information from users mapping.
+    function getUserInfo() external returns (UserInfo memory) {
+        updateVault();
+        _distributeUserRewards();
         return users[_msgSender()];
     } 
 
+    /// @notice Internal function to calculate the early withdraw fees.
+    /// @notice return feeAmount and withdrawAmount.
     function _calculateFee(uint256 _amount) internal pure returns(uint256 feeAmount, uint256 withdrawAmount) {
         feeAmount = _amount * withdrawFee / 10000;
         withdrawAmount = _amount - feeAmount; 
     }
 
     /// @notice Calculates and updates the pending rewards of the vault.
-    function _pendingRewards() internal {
+    function _pendingVaultRewards() internal {
         uint256 _currentRewards = vault.rewardsPerBlock * (block.number - vault.lastRewardBlock);
 
         // if remaining rewards are less than currentRewards
@@ -265,9 +277,9 @@ contract TicketVault is Context, Ownable {
 
         uint256 shareOfReward = users[_msgSender()].totUserShares / vault.totalVaultShares * 100;
         uint256 userReward = (vaultRewards * shareOfReward) / 100;
+        vault.pendingRewards -=  userReward;
 
         users[_msgSender()].pendingRewards += userReward;
-        vault.pendingRewards -=  userReward;
     }
 
     /// @notice Internal function to deposit funds to vault.
@@ -275,9 +287,8 @@ contract TicketVault is Context, Ownable {
     /// @param _amount The amount to be deposited.
     /// @return true if vaild.
     function _deposit(address _from, uint256 _amount) private returns (bool) {
-        if(!_safeTransferFrom(address(_from), _amount)) revert DepositFailed();
-
-        emit Deposit(_amount, _from);
+        token.safeTransferFrom(_from, address(this), _amount);
+        emit Deposit(_from, _amount);
         return true;
     }
 
@@ -286,19 +297,8 @@ contract TicketVault is Context, Ownable {
     /// @param _amount The amount to be withdrawn.
     /// @return true if vaild.
     function _withdraw(address _to, uint256 _amount) private returns (bool) {
-        if(!_safeTransfer(address(_to), _amount)) revert WithdrawFailed();
-
-        emit Withdraw(_amount, _to);
-        return true;
-    }
-
-    function _safeTransfer(address _to, uint256 _amount) private returns (bool) {
         token.safeTransfer(_to, _amount);
-        return true;
-    }
-
-    function _safeTransferFrom(address _from, uint256 _amount) private returns (bool) {
-        token.safeTransferFrom(_from, address(this), _amount);
+        emit Withdraw(_to, _amount);
         return true;
     }
 

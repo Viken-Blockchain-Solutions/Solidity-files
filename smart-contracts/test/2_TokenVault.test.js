@@ -13,14 +13,14 @@ const {
 
 describe("TicketVault", function () {
 
-  let vault, cent, owner, admin, fee, user1, user2, user3, user4, user5, user6;
-  let user7, user8, user9, user10;
+  let vault, cent, owner, fee, user1, user2, user3, user4, user5, user6;
+  let user7;
   
   let user1Balance, user2Balance;
 
   beforeEach(async function () {
     // Get the ContractFactory and Signers here.
-    [owner, admin, fee, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
+    [owner, fee, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
 
     this.rewardsPerBlock = new BN("3381230700000000000");
     this.totReward = new BN("2000000000000000000000000");
@@ -35,7 +35,7 @@ describe("TicketVault", function () {
 
     // deploy contracts
     cent = await CENTContract.deploy();
-    vault = await Contract.deploy(cent.address, admin.address, fee.address);
+    vault = await Contract.deploy(cent.address, fee.address);
 
     // Transfer 5000 tokens from owner to user1 || user2
     await cent.transfer(user1.address, this.fiveT.toString());
@@ -47,9 +47,7 @@ describe("TicketVault", function () {
   describe("Deployment :", function () {
     it("Should set the right owner, admin and fee address of vault contract", async function () {
       expect(await vault.owner()).to.equal(owner.address);
-      expect(await vault.admin()).to.equal(admin.address);
       expect(await vault.feeAddress()).to.equal(fee.address);
-
     });
     it("Should send 5000 test tokens to users 1 and 2's account", async function () {
       expect(user1Balance).to.equal(this.fiveT.toString());
@@ -108,12 +106,12 @@ describe("TicketVault", function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       expect(await vault.connect(user1).deposit(this.fiveT.toString()))
       .to.emit(vault, "Deposit")
-        .withArgs(this.fiveT.toString(), user1.address);
+        .withArgs(user1.address, this.fiveT.toString(),);
       
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
       expect(await vault.connect(user2).deposit(this.fiveT.toString()))
       .to.emit(vault, "Deposit")
-        .withArgs(this.fiveT.toString(), user2.address);
+        .withArgs(user2.address, this.fiveT.toString(),);
       
       const afterVaultBalance = await cent.balanceOf(vault.address);
       const afterUser1Balance = await cent.balanceOf(user1.address);
@@ -163,13 +161,12 @@ describe("TicketVault", function () {
       const beforeVaultBalance = await cent.balanceOf(vault.address);
       const userOneInfo = await vault.users(user1.address);
       const userTwoInfo = await vault.users(user2.address);
-      const userOneBeforeShares = userOneInfo.totUserShares;
+      //const userOneBeforeShares = userOneInfo.totUserShares;
       const userTwoBeforeShares = userTwoInfo.totUserShares;
 
       // execute a withdraw from user 1.
       expect(await vault.connect(user1).withdraw(this.fourT.toString()))
-      .to.emit(vault, 'EarlyWithdraw')
-        .withArgs(this.fourT.toString(), user1.address);
+      .to.emit(vault, 'EarlyWithdraw');
 
       // get vault and user balances After withdraw.
       const afterVaultBalance = await cent.balanceOf(vault.address);
@@ -183,11 +180,9 @@ describe("TicketVault", function () {
       expect(beforeVaultBalance.toString()).to.be.equal("2100000000000000000000000");
       expect(afterVaultBalance.toString()).to.be.equal("2060000000000000000000000");
     });
-
   });
 
   describe("While Started: Vault and Stakeholders", function () {
-
     beforeEach(async function () {
       // transfer tokens to testusers.
       await cent.transfer(user3.address, this.threeT.toString());
@@ -195,6 +190,7 @@ describe("TicketVault", function () {
       await cent.transfer(user5.address, this.fiveT.toString());
       await cent.transfer(user6.address, this.sixT.toString());
       await cent.transfer(user7.address, this.sevenT.toString());
+
       
       // approve vault to deposit tokens.
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
@@ -204,6 +200,7 @@ describe("TicketVault", function () {
       await cent.connect(user5).approve(vault.address, this.fiveT.toString());
       await cent.connect(user6).approve(vault.address, this.sixT.toString());
       await cent.connect(user7).approve(vault.address, this.sevenT.toString());
+ 
       
       // approve and initialize the vault.
       await cent.connect(owner).approve(vault.address, this.totReward.toString());
@@ -223,29 +220,59 @@ describe("TicketVault", function () {
 
     });
 
-    it("Should let the owner set to status Started :", async function () {
+    it("Should let the owner start the vault rewards :", async function () {
       expect(await vault.connect(owner).startVault(1500))
-        .to.emit(vault, "VaultStarted")
-      
-      await vault.connect(owner).updateVault();
-      
+        .to.emit(vault, "VaultStarted");
+     
       const VaultInfo = await vault.vault();
-      console.log(`
-        VaultInfo :
-              status                  :        ${VaultInfo.status},
-              totalVaultShares        :        ${VaultInfo.totalVaultShares.toString()},
-              startBlock              :        ${VaultInfo.startBlock.toString()},
-              stopBlock               :        ${VaultInfo.stopBlock.toString()},   
-              rewardsPerBlock         :        ${VaultInfo.rewardsPerBlock.toString()},
-              lastRewardBlock         :        ${VaultInfo.lastRewardBlock.toString()},
-              pendingRewards          :        ${VaultInfo.pendingRewards.toString()},
-              remainingRewards        :        ${VaultInfo.remainingRewards.toString()},
-              totalVaultRewards       :        ${VaultInfo.totalVaultRewards.toString()},
-              withdrawFeePeriod       :        ${VaultInfo.withdrawFeePeriod.toString()},
-              withdrawPenaltyPeriod   :        ${VaultInfo.withdrawPenaltyPeriod.toString()}
-      `);
+      expect(await VaultInfo.status).to.be.equal(1);
     });
+    it("Should let a user claim their pending rewards :", async function () {
+      await vault.connect(owner).startVault(1500);
+      VaultInfo = await vault.vault();
+      expect(await VaultInfo.status).to.be.equal(1);
+      await vault.connect(user2).claim();
+      
+      /* 
+      const feeBeforeBalance = await cent.balanceOf(fee.address);
+      const feeAfterBalance = await cent.balanceOf(fee.address);
+      console.log(feeBeforeBalance.toString());
+      console.log(feeAfterBalance.toString());
 
+      await vault.connect(user7).claim();
+      await vault.connect(user6).claim();
+      await vault.connect(user5).claim();
+      await vault.connect(user1).claim();
+      await vault.connect(user4).claim();
+      await vault.connect(user3).claim();
+
+      console.log(await vault.connect(user8).getUserInfo());
+      console.log(await vault.connect(user7).getUserInfo());
+      console.log(await vault.connect(user6).getUserInfo());
+      console.log(await vault.connect(user5).getUserInfo());
+      console.log(await vault.connect(user1).getUserInfo());
+      console.log(await vault.connect(user4).getUserInfo());
+      console.log(await vault.connect(user2).getUserInfo());
+      console.log(await vault.connect(user3).getUserInfo()); 
+  
+      await vault.connect(owner).updateVault();
+      */
+     
+     VaultInfo = await vault.vault();
+     console.log(`
+       VaultInfo :
+             status                  :        ${VaultInfo.status},
+             totalVaultShares        :        ${VaultInfo.totalVaultShares.toString()},
+             startBlock              :        ${VaultInfo.startBlock.toString()},
+             stopBlock               :        ${VaultInfo.stopBlock.toString()},   
+             rewardsPerBlock         :        ${VaultInfo.rewardsPerBlock.toString()},
+             lastRewardBlock         :        ${VaultInfo.lastRewardBlock.toString()},
+             pendingRewards          :        ${VaultInfo.pendingRewards.toString()},
+             remainingRewards        :        ${VaultInfo.remainingRewards.toString()},
+             totalVaultRewards       :        ${VaultInfo.totalVaultRewards.toString()},
+             withdrawFeePeriod       :        ${VaultInfo.withdrawFeePeriod.toString()},
+             withdrawPenaltyPeriod   :        ${VaultInfo.withdrawPenaltyPeriod.toString()}
+     `);
+    });
   });
-
 });
