@@ -13,9 +13,8 @@ const {
 
 describe("TicketVault", function () {
 
-  let vault, cent, owner, fee, user1, user2, user3, user4, user5, user6;
-  let user7;
-  
+  let vault, cent, owner, fee, user1, user2, user3, user4, user5, user6, user7;
+  let feeAmount, withdrawAmount;
   let user1Balance, user2Balance;
 
   beforeEach(async function () {
@@ -90,7 +89,7 @@ describe("TicketVault", function () {
     });
   });
 
-  describe("While Collecting: Vault & Stakeholders.", function () {
+  describe("While Collecting :", function () {
     beforeEach(async function () {
       await cent.connect(owner).approve(vault.address, this.totReward.toString());
       await vault.connect(owner).initializeVault(
@@ -98,7 +97,7 @@ describe("TicketVault", function () {
         this.totReward.toString()
       );
     });
-    it("Should let User1 and User2 deposit 5000 tokens each", async function () {
+    it("Should let User1 and User2 deposit 50000 tokens", async function () {
       const beforeVaultBalance = await cent.balanceOf(vault.address);
       const beforeUser1Balance = await cent.balanceOf(user1.address);
       const beforeUser2Balance = await cent.balanceOf(user2.address);
@@ -106,12 +105,12 @@ describe("TicketVault", function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       expect(await vault.connect(user1).deposit(this.fiveT.toString()))
       .to.emit(vault, "Deposit")
-        .withArgs(user1.address, this.fiveT.toString(),);
+        .withArgs(user1.address, this.fiveT.toString());
       
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
       expect(await vault.connect(user2).deposit(this.fiveT.toString()))
       .to.emit(vault, "Deposit")
-        .withArgs(user2.address, this.fiveT.toString(),);
+        .withArgs(user2.address, this.fiveT.toString());
       
       const afterVaultBalance = await cent.balanceOf(vault.address);
       const afterUser1Balance = await cent.balanceOf(user1.address);
@@ -121,7 +120,7 @@ describe("TicketVault", function () {
       expect(afterUser2Balance).to.be.equal(beforeUser2Balance.sub("50000000000000000000000"));
       expect(afterVaultBalance).to.be.equal(beforeVaultBalance.add("100000000000000000000000"));
     });
-    it("Should have the correct userInfo after deposit", async function () {
+    it("Should have the correct userInfo after a deposit", async function () {
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
       await vault.connect(user1).deposit(this.fiveT.toString());
@@ -151,27 +150,40 @@ describe("TicketVault", function () {
       expect(VaultInfo.totalVaultShares.toString()).to.be.equal("100000000000000000000000");
       expect(vaultContractBalance).to.be.equal("2100000000000000000000000");
     });
-    it("Should let User1 withdraw 40000 tokens", async function () {
+    it("Should let User1 withdraw 40000 tokens and pay 7% withdraw fees", async function () { 
+      feeAmount = new BN("2800000000000000000000");
+      withdrawAmount = new BN("37200000000000000000000");
+
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
       await cent.connect(user2).approve(vault.address, this.fiveT.toString());
       await vault.connect(user1).deposit(this.fiveT.toString());
       await vault.connect(user2).deposit(this.fiveT.toString());
   
-      // get vault and user balances before withdraw.
+      // vault balance
       const beforeVaultBalance = await cent.balanceOf(vault.address);
-      const userOneInfo = await vault.users(user1.address);
+
+      // fee balance
+      const feeBeforeBalance = await cent.balanceOf(fee.address);
+    
+      // user balance
       const userTwoInfo = await vault.users(user2.address);
-      //const userOneBeforeShares = userOneInfo.totUserShares;
       const userTwoBeforeShares = userTwoInfo.totUserShares;
 
       // execute a withdraw from user 1.
       expect(await vault.connect(user1).withdraw(this.fourT.toString()))
-      .to.emit(vault, 'EarlyWithdraw');
-
-      // get vault and user balances After withdraw.
+        .to.emit(vault, 'EarlyWithdraw')
+        .withArgs(user1.address, feeAmount, withdrawAmount);
+      
+      // get vault, fee and user balances after user withdraw.
       const afterVaultBalance = await cent.balanceOf(vault.address);
+
+      // fee balance
+      const feeAfterBalance = await cent.balanceOf(fee.address);
+      
+      // user balance
       const userOneAfterInfo = await vault.users(user1.address);
       const userTwoAfterInfo = await vault.users(user2.address);
+      
       const userOneAfterShares = userOneAfterInfo.totUserShares;
       const userTwoAfterShares = userTwoAfterInfo.totUserShares;
 
@@ -179,6 +191,13 @@ describe("TicketVault", function () {
       expect(userTwoAfterShares).to.be.equal(userTwoBeforeShares);
       expect(beforeVaultBalance.toString()).to.be.equal("2100000000000000000000000");
       expect(afterVaultBalance.toString()).to.be.equal("2060000000000000000000000");
+    });
+    it("Should let the owner start the vault rewards :", async function () {
+      expect(await vault.connect(owner).startVault(1500))
+      .to.emit(vault, "VaultStarted");
+  
+      const VaultInfo = await vault.vault();
+      expect(await VaultInfo.status).to.be.equal(1);
     });
   });
 
@@ -217,28 +236,25 @@ describe("TicketVault", function () {
       await vault.connect(user5).deposit(this.fiveT.toString());
       await vault.connect(user6).deposit(this.sixT.toString());
       await vault.connect(user7).deposit(this.sevenT.toString());
-
-    });
-
-    it("Should let the owner start the vault rewards :", async function () {
-      expect(await vault.connect(owner).startVault(1500))
-        .to.emit(vault, "VaultStarted");
-     
-      const VaultInfo = await vault.vault();
-      expect(await VaultInfo.status).to.be.equal(1);
-    });
-    it("Should let a user claim their pending rewards :", async function () {
       await vault.connect(owner).startVault(1500);
       VaultInfo = await vault.vault();
-      expect(await VaultInfo.status).to.be.equal(1);
-      await vault.connect(user2).claim();
-      
-      /* 
-      const feeBeforeBalance = await cent.balanceOf(fee.address);
-      const feeAfterBalance = await cent.balanceOf(fee.address);
-      console.log(feeBeforeBalance.toString());
-      console.log(feeAfterBalance.toString());
+      expect(VaultInfo.status).to.equal(1);
+    });
+ 
+    it("Should let a user claim their pending rewards :", async function () {
+      const userTwoBeforeBalance = await cent.balanceOf(user2.address);
+      expect(await vault.connect(user2).claim())
+        .to.emit(vault, "Withdraw");
 
+      const userTwoAfterBalance = await cent.balanceOf(user2.address);
+      console.log(userTwoBeforeBalance.toString());
+      console.log(userTwoAfterBalance.toString());
+    });
+
+    
+
+
+      /* 
       await vault.connect(user7).claim();
       await vault.connect(user6).claim();
       await vault.connect(user5).claim();
@@ -258,7 +274,7 @@ describe("TicketVault", function () {
       await vault.connect(owner).updateVault();
       */
      
-     VaultInfo = await vault.vault();
+     /* VaultInfo = await vault.vault();
      console.log(`
        VaultInfo :
              status                  :        ${VaultInfo.status},
@@ -272,7 +288,6 @@ describe("TicketVault", function () {
              totalVaultRewards       :        ${VaultInfo.totalVaultRewards.toString()},
              withdrawFeePeriod       :        ${VaultInfo.withdrawFeePeriod.toString()},
              withdrawPenaltyPeriod   :        ${VaultInfo.withdrawPenaltyPeriod.toString()}
-     `);
-    });
+     `); */
   });
 });

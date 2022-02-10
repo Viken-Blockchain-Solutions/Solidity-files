@@ -36,8 +36,9 @@ contract TicketVault is Context, Ownable {
         address user;
         uint256 totUserShares;
         uint256 lastDepositedTime;
-        uint256 lastClaimTime;
         uint256 pendingRewards;
+        uint256 lastClaimTime;
+        uint256 totClaimed;
     }
 
     Vault public vault;
@@ -102,7 +103,7 @@ contract TicketVault is Context, Ownable {
     }
 
     // ethereum mainnet averages 6500 blocksPerDay.
-    // 3381230700000000000 _rewardPerBlock.
+    //  _rewardPerBlock.
     function initializeVault(uint256 rewardsPerBlock, uint256 totVaultRewards)
         external 
         onlyOwner
@@ -228,17 +229,19 @@ contract TicketVault is Context, Ownable {
     }
 
     /// @notice A user can claim their pendingRewards.
-    function claim() external isUser isStarted canClaim returns (uint256 amount) {
+    function claim() external isUser isStarted canClaim returns (uint256 claimedAmount) {
         updateVault();
         _distributeUserRewards();
         
-        amount = users[_msgSender()].pendingRewards;
+        claimedAmount = users[_msgSender()].pendingRewards;
         users[_msgSender()].pendingRewards = 0;
 
-        require(_withdraw(_msgSender(), amount));
+        require(_withdraw(_msgSender(), claimedAmount));
+
+        users[_msgSender()].totClaimed = claimedAmount;
         users[_msgSender()].lastClaimTime = block.timestamp;
 
-        emit Rewards(_msgSender(), amount);
+        return (claimedAmount);
     }
 
     /// @notice Get UserInformation.
