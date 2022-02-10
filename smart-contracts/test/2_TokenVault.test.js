@@ -151,7 +151,7 @@ describe("TicketVault", function () {
       expect(vaultContractBalance).to.be.equal("2100000000000000000000000");
     });
     it("Should let User1 withdraw 40000 tokens and pay 7% withdraw fees", async function () { 
-      feeAmount = new BN("2800000000000000000000");
+      feeAmount = new BN("28000000000000000000000");
       withdrawAmount = new BN("37200000000000000000000");
 
       await cent.connect(user1).approve(vault.address, this.fiveT.toString());
@@ -179,7 +179,7 @@ describe("TicketVault", function () {
 
       // fee balance
       const feeAfterBalance = await cent.balanceOf(fee.address);
-      
+      console.log(feeAfterBalance.toString());
       // user balance
       const userOneAfterInfo = await vault.users(user1.address);
       const userTwoAfterInfo = await vault.users(user2.address);

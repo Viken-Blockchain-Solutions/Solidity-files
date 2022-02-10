@@ -13,39 +13,33 @@ contract TicketVault is Context, Ownable {
     /// @notice enum Status contains multiple status.
     enum Status { Collecting, Started, Completed }
     
-    IERC20 public token;
-    address public feeAddress;
-    uint256 public constant withdrawFee = 700; // 7%
-    bool public initialized;
+    IERC20 token;
+    address feeAddress;
+    uint256 constant withdrawFee = 700; // 7% withdraw fee.
+    uint256 withdrawFeePeriod; // 12 weeks
+    uint256 withdrawPenaltyPeriod; // 14 days;
 
-    struct Vault {
-        Status status; // vault status
-        uint256 totalVaultShares; // total tokens deposited into Vault.
-        uint256 startBlock;  // block.number when the vault start accouring rewards. 
-        uint256 stopBlock; // the block.number to end the staking vault.
-        uint256 rewardsPerBlock; // rewards to be realised to the vault each block. 
-        uint256 lastRewardBlock; // the last block rewards was updated.
-        uint256 pendingRewards; // pending rewards for this vault.        
-        uint256 remainingRewards; // remaining rewards for this vault.        
-        uint256 totalVaultRewards; // amount of tokens to reward this vault.
-        uint256 withdrawFeePeriod; // 12 weeks;
-        uint256 withdrawPenaltyPeriod; // 14 days;
-    }
-
+    Status status; // vault status
+    uint256 rewardsPerBlock; // rewards to be released to the vault each block. 
+    uint256 totalVaultShares; // total tokens deposited into Vault.
+    uint256 startBlock;  // block.number when the vault start accouring rewards. 
+    uint256 stopBlock; // the block.number to end the staking vault.
+    uint256 lastRewardBlock; // the last block rewards was updated.
+    uint256 pendingVaultRewards; // pending rewards for this vault.        
+    uint256 remainingRewards; // remaining rewards for this vault.        
+    uint256 totalVaultRewards; // amount of tokens to reward this vault.
+    
     struct UserInfo {
         address user;
-        uint256 totUserShares;
-        uint256 lastDepositedTime;
-        uint256 pendingRewards;
+        uint256 totalUserShares;
+        uint256 lastDepositTime;
+        uint256 pendingUserRewards;
         uint256 lastClaimTime;
         uint256 totClaimed;
     }
 
-    Vault public vault;
     mapping (address => UserInfo) public users;
 
-    error FailedToInitVault();
-    error AlreadyInitialized();
     error NotAuthorized();
     error NotEnoughShares();
     error JustClaimed();
@@ -55,200 +49,198 @@ contract TicketVault is Context, Ownable {
     error CalculateFeesFailed();
     error WithdrawFeesFailed();
     error RewardsLow();
+    error FailedToClaim();
    
     error NotStarted();
+    error NotCompleted();
     error NotCollecting();
     error VaultCompleted();
     error RewardsCompleted();
    
-    event VaultInitialized();
+
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
     event EarlyWithdraw(address indexed user, uint256 amount, uint256 feeAmount);
     event Rewards(address indexed user, uint256 amount);
     event VaultStarted();
-    event VaultFinished();
+    event StakingFinished();
 
-    constructor(IERC20 _token, address _feeAddress) {
+    constructor(IERC20 _token, address _feeAddress, uint256 _rewardsPerBlock, uint256 _totalVaultRewards) {
         token = _token;
         feeAddress = _feeAddress;
-    }
-    
-    modifier notInitialized() {
-        if (initialized) 
-            revert AlreadyInitialized();
-        _;
-        initialized = true;
+
+        status = Status.Collecting;
+        rewardsPerBlock = _rewardsPerBlock;
+        lastRewardBlock =  block.number;
+        remainingRewards =  _totalVaultRewards;
+        totalVaultRewards =  _totalVaultRewards;
+
+        _deposit(_msgSender(), _totalVaultRewards);
     }
 
-    modifier canClaim() {
+    /// @notice modifier checks that user can only claim every 24 hours.
+    modifier claimable() {
         uint256 nextClaim = users[_msgSender()].lastClaimTime + 1 days;
         if (block.timestamp < nextClaim) revert JustClaimed();
         _;
     }
 
+    /// @notice modifier checks that user is staking.
     modifier isUser() {
-        if (_msgSender() != users[_msgSender()].user) revert NotAuthorized();
+        if (_msgSender() != users[_msgSender()].user &&
+            users[_msgSender()].totalUserShares > 0
+        ) revert NotAuthorized();
         _;
     }
 
-    modifier isStarted() {
-        if (vault.status != Status.Started) revert NotStarted();
+    /// @notice modifier checks that staking has status started.
+    modifier isStaking() {
+        if (status != Status.Started) revert NotStarted();
         _;
     }
 
+    /// @notice modifier checks that contract is status collecting.
     modifier isCollecting() {
-        if (vault.status != Status.Collecting) revert NotCollecting();
+        if (status != Status.Collecting) revert NotCollecting();
         _;
     }
 
-    // ethereum mainnet averages 6500 blocksPerDay.
-    //  _rewardPerBlock.
-    function initializeVault(uint256 rewardsPerBlock, uint256 totVaultRewards)
-        external 
-        onlyOwner
-        notInitialized
-    {
-        vault.status = Status.Collecting;
-        vault.rewardsPerBlock = rewardsPerBlock;
-        vault.lastRewardBlock =  block.number;
-        vault.remainingRewards =  totVaultRewards;
-        vault.totalVaultRewards =  totVaultRewards;
-
-        if (!_deposit(_msgSender(), totVaultRewards)) revert FailedToInitVault();
-        initialized;
-        emit VaultInitialized();
+    /// @notice modifier checks that contract is status completed.
+    modifier isCompleted() {
+        if (status != Status.Completed) revert NotCompleted();
+        _;
     }
 
     /// @notice Deposit funds into vault.
     /// @param _amount The amount to deposit.
-    /// @return true if vaild.
-    function deposit(uint256 _amount) external isCollecting returns (bool) {
+    function deposit(uint256 _amount) external isCollecting {
+        
         if (!_deposit(_msgSender(), _amount)) revert DepositFailed();
 
-        vault.totalVaultShares += _amount;
+        totalVaultShares += _amount;
         users[_msgSender()].user = address(_msgSender());
-        users[_msgSender()].totUserShares += _amount;
-        users[_msgSender()].lastDepositedTime = block.timestamp;
-        
-        return true;
+        users[_msgSender()].totalUserShares += _amount;
+        users[_msgSender()].lastDepositTime = block.timestamp;
     }
     
     /// @notice Withdraw funds from vault.
     /// @param _amount The amount to withdraw from the vault.
-    /// @return true if vaild.
-    function withdraw(uint256 _amount) external isUser returns (bool) {
-        if (users[_msgSender()].totUserShares < _amount) revert NotEnoughShares();
+    function withdraw(uint256 _amount) external isUser isCollecting isStaking {
+        if (users[_msgSender()].totalUserShares < _amount) revert NotEnoughShares();
 
         uint256 _shares = _amount;
-        users[_msgSender()].totUserShares -= _shares;
-        vault.totalVaultShares -= _shares;
+        users[_msgSender()].totalUserShares -= _shares;
+        totalVaultShares -= _shares;
 
         // if Vault status is collecting. 
         // Pay 7% withdrawFee before withdraw, No rewards!
-        if (vault.status == Status.Collecting) {
+        if (status == Status.Collecting) {
 
             (uint256 _feeAmount, uint256 _withdrawAmount) = _calculateFee(_shares);
             
             if (!_withdraw(feeAddress, _feeAmount)) revert WithdrawFeesFailed();
-            require(_withdraw(_msgSender(), _withdrawAmount));
-            
-            emit EarlyWithdraw(_msgSender(), _withdrawAmount, _feeAmount);
-
-            return true;
-        } 
+            if(!_withdraw(_msgSender(), _withdrawAmount)) revert WithdrawFailed();
+        }
 
         // if Vault status is started (ongoing).
         // Pay 7% withdraw fee from stake and reward before withdraw.
-        if (vault.status == Status.Started) {
+        if (status == Status.Started) {
             updateVault();
-            _distributeUserRewards();
 
-            uint256 _userRewards = users[_msgSender()].pendingRewards;
-            users[_msgSender()].pendingRewards = 0;
+            uint256 _pendingUserRewards = users[_msgSender()].pendingUserRewards;
+            users[_msgSender()].pendingUserRewards = 0;
 
-            (uint256 _feeAmount, uint256 _withdrawAmount) = _calculateFee(_shares + _userRewards);
+            (uint256 _feeAmount, uint256 _withdrawAmount) = _calculateFee(_shares + _pendingUserRewards);
             
             if(!_withdraw(feeAddress, _feeAmount)) revert WithdrawFeesFailed();
-            require(_withdraw(_msgSender(), _withdrawAmount));
 
-            emit EarlyWithdraw(_msgSender(), _withdrawAmount, _feeAmount);
-
-            return true;
+            if(!_withdraw(_msgSender(), _withdrawAmount)) revert WithdrawFailed();
         }
         
-        // if Vault status is completed (finished).
-        // Withdraw stake and rewards without extra fees.
-        if (vault.status == Status.Completed) {
-            updateVault();
-            _distributeUserRewards();
-            uint256 _userRewards = users[_msgSender()].pendingRewards;
-            users[_msgSender()].pendingRewards = 0;
-            
-            uint256 withdrawAmount = _shares + _userRewards;
-            if(!_withdraw(_msgSender(), withdrawAmount)) revert WithdrawFailed();
-
-            return true;
-        }
-
-        return true;
     }
 
-    /// @notice Updates the Vaults pending rewards.
-    function updateVault() internal isStarted {
-        //if (vault.status == Status.Completed) revert VaultCompleted();
-        if (vault.remainingRewards <= uint256(4e18)) revert RewardsLow();
+    /// @notice Remove stake and rewards without extra fees.
+    function collectStakeAndRewards() external isUser isCompleted {
+            updateVault();
 
-        if (block.number >= vault.stopBlock) {
-            vault.status = Status.Completed;
-            emit VaultFinished();
-        } 
+            uint256 _vaultRewards = pendingVaultRewards;
 
-        _pendingVaultRewards();
+            uint256 _userShareOfReward = users[_msgSender()].totalUserShares / totalVaultShares * 100;
+            uint256 _pendingUserReward = (_vaultRewards * _userShareOfReward) / 100;
+        
+            pendingVaultRewards -= _pendingUserReward;
+            users[_msgSender()].pendingUserRewards += _pendingUserReward;
+
+            uint256 _totalUserShares =  users[_msgSender()].totalUserShares;
+            uint256 _pendingUserRewards = users[_msgSender()].pendingUserRewards;
+            
+            users[_msgSender()].totalUserShares = 0;
+            users[_msgSender()].pendingUserRewards = 0;
+            
+            uint256 withdrawAmount = _totalUserShares + _pendingUserRewards;
+            
+            if(!_withdraw(_msgSender(), withdrawAmount)) revert WithdrawFailed();
+    }
+    
+    /// @notice Updates the vault pending rewards.
+    function updateVault() public {
+    
+        uint256 _currentRewards = rewardsPerBlock * (block.number - lastRewardBlock);
+
+        // if remaining rewards are less than currentRewards
+        if (remainingRewards <= _currentRewards) {
+            // set remainingRewards as currentRewards
+            _currentRewards = remainingRewards;
+        }
+            
+        remainingRewards -= _currentRewards;
+        pendingVaultRewards += _currentRewards;
+        lastRewardBlock = block.number;
     }
 
     /// @notice A setter function to set the status.
     function startVault(uint256 _stopBlock) external isCollecting onlyOwner {
-        vault.status = Status.Started;
-        vault.startBlock = block.number;
-        vault.stopBlock = _stopBlock;
-        vault.lastRewardBlock = block.number;
-        vault.withdrawFeePeriod = 13 weeks; // fee period 
-        vault.withdrawPenaltyPeriod = 14 days; // penalty period
-
-        emit VaultStarted();
+        status = Status.Started;
+        startBlock = block.number;
+        stopBlock = _stopBlock;
+        lastRewardBlock = block.number;
+        withdrawFeePeriod = 13 weeks; // 3 months fee period 
+        withdrawPenaltyPeriod = 14 days; // penalty period
     }
 
-    /// @notice A setter function to set the status.
-    function stopVault() external isStarted onlyOwner {
+    /// @notice Set the status to completed.
+    function stopVault() external isStaking onlyOwner {
         updateVault();
-        vault.status = Status.Completed;
-        vault.stopBlock = block.number;
+        status = Status.Completed;
+        stopBlock = block.number;
 
-        emit  VaultFinished();
+        emit  StakingFinished();
     }
 
     /// @notice A user can claim their pendingRewards.
-    function claim() external isUser isStarted canClaim returns (uint256 claimedAmount) {
+    function claim() external isUser isStaking claimable returns (uint256) {
         updateVault();
-        _distributeUserRewards();
         
-        claimedAmount = users[_msgSender()].pendingRewards;
-        users[_msgSender()].pendingRewards = 0;
+        uint256 _vaultRewards = pendingVaultRewards;
 
-        require(_withdraw(_msgSender(), claimedAmount));
+        uint256 _userShareOfReward = users[_msgSender()].totalUserShares / totalVaultShares * 100;
+        uint256 _pendingUserReward = (_vaultRewards * _userShareOfReward) / 100;
+        
+        pendingVaultRewards -= _pendingUserReward;
+        uint256 _claimAmount = users[_msgSender()].pendingUserRewards += _pendingUserReward;
+        users[_msgSender()].pendingUserRewards = 0;
 
-        users[_msgSender()].totClaimed = claimedAmount;
+        token.safeTransfer(_msgSender(), _claimAmount);
+        
+        users[_msgSender()].totClaimed = _claimAmount;
         users[_msgSender()].lastClaimTime = block.timestamp;
 
-        return (claimedAmount);
+        return (_claimAmount);
     }
 
     /// @notice Get UserInformation.
     /// @return users Information from users mapping.
-    function getUserInfo() external returns (UserInfo memory) {
-        updateVault();
-        _distributeUserRewards();
+    function getUserInfo() external view returns (UserInfo memory) {
         return users[_msgSender()];
     } 
 
@@ -257,32 +249,6 @@ contract TicketVault is Context, Ownable {
     function _calculateFee(uint256 _amount) internal pure returns(uint256 feeAmount, uint256 withdrawAmount) {
         feeAmount = _amount * withdrawFee / 10000;
         withdrawAmount = _amount - feeAmount; 
-    }
-
-    /// @notice Calculates and updates the pending rewards of the vault.
-    function _pendingVaultRewards() internal {
-        uint256 _currentRewards = vault.rewardsPerBlock * (block.number - vault.lastRewardBlock);
-
-        // if remaining rewards are less than currentRewards
-        if (vault.remainingRewards <= _currentRewards) {
-            // set remainingRewards as currentRewards
-            _currentRewards = vault.remainingRewards;
-        }
-            
-        vault.remainingRewards -= _currentRewards;
-        vault.pendingRewards += _currentRewards;
-        vault.lastRewardBlock = block.number;
-    }
-
-    /// @notice Internal function to distribute pending rewards to the user
-    function _distributeUserRewards() internal {
-        uint256 vaultRewards = vault.pendingRewards;
-
-        uint256 shareOfReward = users[_msgSender()].totUserShares / vault.totalVaultShares * 100;
-        uint256 userReward = (vaultRewards * shareOfReward) / 100;
-        vault.pendingRewards -=  userReward;
-
-        users[_msgSender()].pendingRewards += userReward;
     }
 
     /// @notice Internal function to deposit funds to vault.
