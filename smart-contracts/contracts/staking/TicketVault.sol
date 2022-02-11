@@ -13,21 +13,21 @@ contract TicketVault is Context, Ownable {
     /// @notice enum Status contains multiple status.
     enum Status { Collecting, Started, Completed }
     
-    IERC20 token;
-    address feeAddress;
-    uint256 constant withdrawFee = 700; // 7% withdraw fee.
-    uint256 withdrawFeePeriod; // 12 weeks
-    uint256 withdrawPenaltyPeriod; // 14 days;
+    IERC20 public token;
+    address private feeAddress;
+    uint256 public constant withdrawFee = 700; // 7% withdraw fee.
+    uint256 public withdrawFeePeriod; // 12 weeks
+    uint256 public withdrawPenaltyPeriod; // 14 days;
 
-    Status status; // vault status
-    uint256 rewardsPerBlock; // rewards to be released to the vault each block. 
-    uint256 totalVaultShares; // total tokens deposited into Vault.
-    uint256 startBlock;  // block.number when the vault start accouring rewards. 
-    uint256 stopBlock; // the block.number to end the staking vault.
-    uint256 lastRewardBlock; // the last block rewards was updated.
-    uint256 pendingVaultRewards; // pending rewards for this vault.        
-    uint256 remainingRewards; // remaining rewards for this vault.        
-    uint256 totalVaultRewards; // amount of tokens to reward this vault.
+    Status public status; // vault status
+    uint256 public rewardsPerBlock; // rewards to be released to the vault each block. 
+    uint256 public totalVaultShares; // total tokens deposited into Vault.
+    uint256 public startBlock;  // block.number when the vault start accouring rewards. 
+    uint256 public stopBlock; // the block.number to end the staking vault.
+    uint256 public lastRewardBlock; // the last block rewards was updated.
+    uint256 public pendingVaultRewards; // pending rewards for this vault.        
+    uint256 public remainingRewards; // remaining rewards for this vault.        
+    uint256 public totalVaultRewards; // amount of tokens to reward this vault.
     
     struct UserInfo {
         address user;
@@ -65,17 +65,16 @@ contract TicketVault is Context, Ownable {
     event VaultStarted();
     event StakingFinished();
 
-    constructor(IERC20 _token, address _feeAddress, uint256 _rewardsPerBlock, uint256 _totalVaultRewards) {
+    constructor(
+        IERC20 _token, 
+        address _feeAddress, 
+        uint256 _rewardsPerBlock
+    ) {
         token = _token;
         feeAddress = _feeAddress;
-
         status = Status.Collecting;
         rewardsPerBlock = _rewardsPerBlock;
         lastRewardBlock =  block.number;
-        remainingRewards =  _totalVaultRewards;
-        totalVaultRewards =  _totalVaultRewards;
-
-        _deposit(_msgSender(), _totalVaultRewards);
     }
 
     /// @notice modifier checks that user can only claim every 24 hours.
@@ -110,6 +109,15 @@ contract TicketVault is Context, Ownable {
         if (status != Status.Completed) revert NotCompleted();
         _;
     }
+    
+    /// @notice Add reward amount to the vault.
+    /// @dev Restricted to onlyOwner.  
+    function addRewards(uint256 _amount) external onlyOwner {
+        remainingRewards +=  _amount;
+        totalVaultRewards +=  _amount;
+
+        token.safeTransferFrom(_msgSender(), address(this), _amount);
+    }
 
     /// @notice Deposit funds into vault.
     /// @param _amount The amount to deposit.
@@ -123,9 +131,9 @@ contract TicketVault is Context, Ownable {
         users[_msgSender()].lastDepositTime = block.timestamp;
     }
     
-    /// @notice Withdraw funds from vault.
+    /// @notice EarlyWithdraw funds from vault. ATT. 7% early withdraw fee.
     /// @param _amount The amount to withdraw from the vault.
-    function withdraw(uint256 _amount) external isUser isCollecting isStaking {
+    function earlyWithdraw(uint256 _amount) external isUser isCollecting isStaking {
         if (users[_msgSender()].totalUserShares < _amount) revert NotEnoughShares();
 
         uint256 _shares = _amount;
@@ -198,7 +206,7 @@ contract TicketVault is Context, Ownable {
         lastRewardBlock = block.number;
     }
 
-    /// @notice A setter function to set the status.
+    /// @notice A function to set the status.
     function startVault(uint256 _stopBlock) external isCollecting onlyOwner {
         status = Status.Started;
         startBlock = block.number;
@@ -223,7 +231,9 @@ contract TicketVault is Context, Ownable {
         
         uint256 _vaultRewards = pendingVaultRewards;
 
-        uint256 _userShareOfReward = users[_msgSender()].totalUserShares / totalVaultShares * 100;
+        uint256 _userShareOfReward = (
+            totalVaultShares / users[_msgSender()].totalUserShares
+        ) * 100;
         uint256 _pendingUserReward = (_vaultRewards * _userShareOfReward) / 100;
         
         pendingVaultRewards -= _pendingUserReward;
@@ -240,8 +250,14 @@ contract TicketVault is Context, Ownable {
 
     /// @notice Get UserInformation.
     /// @return users Information from users mapping.
-    function getUserInfo() external view returns (UserInfo memory) {
-        return users[_msgSender()];
+    function getUserInfo() external view returns (address, uint256, uint256, uint256, uint256) {
+        return (
+            users[_msgSender()].user,
+            users[_msgSender()].totalUserShares,
+            users[_msgSender()].lastDepositTime,
+            users[_msgSender()].lastClaimTime,
+            users[_msgSender()].totClaimed
+        );
     } 
 
     /// @notice Internal function to calculate the early withdraw fees.
