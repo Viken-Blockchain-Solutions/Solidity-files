@@ -9,35 +9,38 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract TicketVault is Context, Ownable {
     using SafeERC20 for IERC20;
 
-    
     /// @notice enum Status contains multiple status.
     enum Status { Collecting, Started, Completed }
+
+    struct VaultInfo {
+        Status status; // vault status
+        uint256 rewardsPerBlock; // rewards to be released to the vault each block. 
+        uint256 totalVaultShares; // total tokens deposited into Vault.
+        uint256 startBlock;  // block.number when the vault start accouring rewards. 
+        uint256 stopBlock; // the block.number to end the staking vault.
+        uint256 lastRewardBlock; // the last block rewards was updated.
+        uint256 pendingVaultRewards; // pending rewards for this vault.        
+        uint256 remainingRewards; // remaining rewards for this vault.        
+        uint256 totalVaultRewards; // amount of tokens to reward this vault.
+    }
     
+    struct UserInfo {
+        address user;
+        uint256 totalUserShares; // total user staked in vault.
+        uint256 userPercentOfVault; // percentage of total staked.
+        uint256 lastDepositTime; // ?? last time deposited funds.
+        uint256 pendingUserRewards; // ?? pending rewards.
+        uint256 lastClaimBlock; // 
+        uint256 totClaimed;
+    }
+
     IERC20 public token;
     address private feeAddress;
     uint256 public constant withdrawFee = 700; // 7% withdraw fee.
     uint256 public withdrawFeePeriod; // 12 weeks
     uint256 public withdrawPenaltyPeriod; // 14 days;
 
-    Status public status; // vault status
-    uint256 public rewardsPerBlock; // rewards to be released to the vault each block. 
-    uint256 public totalVaultShares; // total tokens deposited into Vault.
-    uint256 public startBlock;  // block.number when the vault start accouring rewards. 
-    uint256 public stopBlock; // the block.number to end the staking vault.
-    uint256 public lastRewardBlock; // the last block rewards was updated.
-    uint256 public pendingVaultRewards; // pending rewards for this vault.        
-    uint256 public remainingRewards; // remaining rewards for this vault.        
-    uint256 public totalVaultRewards; // amount of tokens to reward this vault.
-    
-    struct UserInfo {
-        address user;
-        uint256 totalUserShares;
-        uint256 lastDepositTime;
-        uint256 pendingUserRewards;
-        uint256 lastClaimTime;
-        uint256 totClaimed;
-    }
-
+    VaultInfo public vault;
     mapping (address => UserInfo) public users;
 
     error NotAuthorized();
@@ -72,14 +75,14 @@ contract TicketVault is Context, Ownable {
     ) {
         token = _token;
         feeAddress = _feeAddress;
-        status = Status.Collecting;
-        rewardsPerBlock = _rewardsPerBlock;
-        lastRewardBlock =  block.number;
+        vault.status = Status.Collecting;
+        vault.rewardsPerBlock = _rewardsPerBlock;
+        vault.lastRewardBlock =  block.number;
     }
 
     /// @notice modifier checks that user can only claim every 24 hours.
     modifier claimable() {
-        uint256 nextClaim = users[_msgSender()].lastClaimTime + 1 days;
+        uint256 nextClaim = users[_msgSender()].lastClaimBlock + 6500;
         if (block.timestamp < nextClaim) revert JustClaimed();
         _;
     }
@@ -94,27 +97,27 @@ contract TicketVault is Context, Ownable {
 
     /// @notice modifier checks that staking has status started.
     modifier isStaking() {
-        if (status != Status.Started) revert NotStarted();
+        if (vault.status != Status.Started) revert NotStarted();
         _;
     }
 
     /// @notice modifier checks that contract is status collecting.
     modifier isCollecting() {
-        if (status != Status.Collecting) revert NotCollecting();
+        if (vault.status != Status.Collecting) revert NotCollecting();
         _;
     }
 
     /// @notice modifier checks that contract is status completed.
     modifier isCompleted() {
-        if (status != Status.Completed) revert NotCompleted();
+        if (vault.status != Status.Completed) revert NotCompleted();
         _;
     }
     
     /// @notice Add reward amount to the vault.
     /// @dev Restricted to onlyOwner.  
     function addRewards(uint256 _amount) external onlyOwner {
-        remainingRewards +=  _amount;
-        totalVaultRewards +=  _amount;
+        vault.remainingRewards +=  _amount;
+        vault.totalVaultRewards +=  _amount;
 
         token.safeTransferFrom(_msgSender(), address(this), _amount);
     }
@@ -125,7 +128,7 @@ contract TicketVault is Context, Ownable {
         
         if (!_deposit(_msgSender(), _amount)) revert DepositFailed();
 
-        totalVaultShares += _amount;
+        vault.totalVaultShares += _amount;
         users[_msgSender()].user = address(_msgSender());
         users[_msgSender()].totalUserShares += _amount;
         users[_msgSender()].lastDepositTime = block.timestamp;
@@ -133,16 +136,16 @@ contract TicketVault is Context, Ownable {
     
     /// @notice EarlyWithdraw funds from vault. ATT. 7% early withdraw fee.
     /// @param _amount The amount to withdraw from the vault.
-    function earlyWithdraw(uint256 _amount) external isUser isCollecting isStaking {
-        if (users[_msgSender()].totalUserShares < _amount) revert NotEnoughShares();
+    function earlyWithdraw() external isUser isCollecting isStaking updateVault {
+        require(_msgSender() != address(0), "Not zero values");
 
-        uint256 _shares = _amount;
+        uint256 _shares = users[_msgSender()].totalUserShares;
         users[_msgSender()].totalUserShares -= _shares;
-        totalVaultShares -= _shares;
+        vault.totalVaultShares -= _shares;
 
         // if Vault status is collecting. 
         // Pay 7% withdrawFee before withdraw, No rewards!
-        if (status == Status.Collecting) {
+        if (vault.status == Status.Collecting) {
 
             (uint256 _feeAmount, uint256 _withdrawAmount) = _calculateFee(_shares);
             
@@ -152,9 +155,7 @@ contract TicketVault is Context, Ownable {
 
         // if Vault status is started (ongoing).
         // Pay 7% withdraw fee from stake and reward before withdraw.
-        if (status == Status.Started) {
-            updateVault();
-
+        if (vault.vault.status == Status.Started) {
             uint256 _pendingUserRewards = users[_msgSender()].pendingUserRewards;
             users[_msgSender()].pendingUserRewards = 0;
 
@@ -168,15 +169,14 @@ contract TicketVault is Context, Ownable {
     }
 
     /// @notice Remove stake and rewards without extra fees.
-    function collectStakeAndRewards() external isUser isCompleted {
-            updateVault();
+    function collectStakeAndRewards() external isUser isCompleted updateVault {
+            require(_msgSender() != address(0), "Not zero values");
+            uint256 _vaultRewards = vault.pendingVaultRewards;
 
-            uint256 _vaultRewards = pendingVaultRewards;
-
-            uint256 _userShareOfReward = users[_msgSender()].totalUserShares / totalVaultShares * 100;
+            uint256 _userShareOfReward = users[_msgSender()].totalUserShares / vault.totalVaultShares * 100;
             uint256 _pendingUserReward = (_vaultRewards * _userShareOfReward) / 100;
         
-            pendingVaultRewards -= _pendingUserReward;
+            vault.pendingVaultRewards -= _pendingUserReward;
             users[_msgSender()].pendingUserRewards += _pendingUserReward;
 
             uint256 _totalUserShares =  users[_msgSender()].totalUserShares;
@@ -190,50 +190,51 @@ contract TicketVault is Context, Ownable {
             if(!_withdraw(_msgSender(), withdrawAmount)) revert WithdrawFailed();
     }
     
-    /// @notice Updates the vault pending rewards.
-    function updateVault() public {
-    
-        uint256 _currentRewards = rewardsPerBlock * (block.number - lastRewardBlock);
-
-        // if remaining rewards are less than currentRewards
-        if (remainingRewards <= _currentRewards) {
-            // set remainingRewards as currentRewards
-            _currentRewards = remainingRewards;
-        }
+    modifier updateVault() {
+        (uint256 _currentRewards) = getPendingVaultRewards();
             
-        remainingRewards -= _currentRewards;
-        pendingVaultRewards += _currentRewards;
-        lastRewardBlock = block.number;
+        vault.remainingRewards -= _currentRewards;
+        vault.pendingVaultRewards += _currentRewards;
+        vault.lastRewardBlock = block.number;
+        _;
     }
 
     /// @notice A function to set the status.
     function startVault(uint256 _stopBlock) external isCollecting onlyOwner {
-        status = Status.Started;
-        startBlock = block.number;
-        stopBlock = _stopBlock;
-        lastRewardBlock = block.number;
+        vault.status = Status.Started;
+        vault.startBlock = block.number;
+        vault.stopBlock = _stopBlock;
+        vault.lastRewardBlock = block.number;
         withdrawFeePeriod = 13 weeks; // 3 months fee period 
         withdrawPenaltyPeriod = 14 days; // penalty period
     }
 
     /// @notice Set the status to completed.
-    function stopVault() external isStaking onlyOwner {
-        updateVault();
-        status = Status.Completed;
-        stopBlock = block.number;
+    function stopVault() external isStaking onlyOwner updateVault {
+        vault.status = Status.Completed;
+        vault.stopBlock = block.number;
 
         emit  StakingFinished();
     }
 
     /// @notice A user can claim their pendingRewards.
-    function claim() external isUser isStaking claimable returns (uint256) {
-        updateVault();
+    function claim() updateVault external {
+        (uint256 _userPercentOfVault, uint256 _pendingUserReward) = calculateClaim();
+        vault.pendingVaultRewards -= _pendingUserReward;
+
+        users[msg.sender].userPercentOfVault = _userPercentOfVault;
+        users[msg.sender].totClaimed += _pendingUserReward;
+        users[msg.sender].lastClaimBlock = block.number;
+
+        require(_withdraw(_msgSender(), _pendingUserReward), "claim failed");
+    }
+
+
+    /* function claim() external isUser isStaking claimable updateVault returns (uint256) {
         
         uint256 _vaultRewards = pendingVaultRewards;
 
-        uint256 _userShareOfReward = (
-            totalVaultShares / users[_msgSender()].totalUserShares
-        ) * 100;
+        uint256 _userShareOfReward = users[_msgSender()].totalUserShares / totalVaultShares * 100;
         uint256 _pendingUserReward = (_vaultRewards * _userShareOfReward) / 100;
         
         pendingVaultRewards -= _pendingUserReward;
@@ -246,25 +247,38 @@ contract TicketVault is Context, Ownable {
         users[_msgSender()].lastClaimTime = block.timestamp;
 
         return (_claimAmount);
-    }
+    } */
 
     /// @notice Get UserInformation.
     /// @return users Information from users mapping.
-    function getUserInfo() external view returns (address, uint256, uint256, uint256, uint256) {
+    function getUserInfo() external view returns (address, uint256, uint256, uint256, uint256, uint256) {
         return (
             users[_msgSender()].user,
             users[_msgSender()].totalUserShares,
+            users[_msgSender()].userPercentOfVault,
             users[_msgSender()].lastDepositTime,
-            users[_msgSender()].lastClaimTime,
+            users[_msgSender()].lastClaimBlock,
             users[_msgSender()].totClaimed
         );
     } 
 
+    function getPendingVaultRewards() private view returns (uint256) {
+        uint256 _pendingVaultRewards = vault.rewardsPerBlock * (block.number - vault.lastRewardBlock);
+        return (_pendingVaultRewards);
+    }
+
     /// @notice Internal function to calculate the early withdraw fees.
     /// @notice return feeAmount and withdrawAmount.
-    function _calculateFee(uint256 _amount) internal pure returns(uint256 feeAmount, uint256 withdrawAmount) {
+    function _calculateFee(uint256 _amount) private pure returns (uint256 feeAmount, uint256 withdrawAmount) {
         feeAmount = _amount * withdrawFee / 10000;
         withdrawAmount = _amount - feeAmount; 
+    }
+
+    function calculateClaim() private view returns (uint256 userPercentOfVault, uint256 pendingUserReward) {
+        require(pendingVaultRewards > 0, "No pending rewards");
+        
+        userPercentOfVault = (users[msg.sender].totalUserShares * 100) / vault.totalVaultShares;
+        pendingUserReward = (pendingVaultRewards * vault.userPercentOfVault) / 100;
     }
 
     /// @notice Internal function to deposit funds to vault.
