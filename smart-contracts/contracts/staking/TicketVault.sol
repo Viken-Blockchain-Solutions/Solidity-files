@@ -5,8 +5,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-contract TicketVault is Context, Ownable {
+import "./Fees.sol";
+ 
+contract TicketVault is Context, Ownable, Fees {
     using SafeERC20 for IERC20;
 
     /// @notice enum Status contains multiple status.
@@ -14,7 +15,7 @@ contract TicketVault is Context, Ownable {
 
     struct VaultInfo {
         Status status; // vault status
-        uint256 rewardsPerBlock; // rewards to be released to the vault each block. 
+        uint256 rewardsPerBlock; // 33812307000000000000 rewards to be released to the vault each block. 
         uint256 totalVaultShares; // total tokens deposited into Vault.
         uint256 startBlock;  // block.number when the vault start accouring rewards. 
         uint256 stopBlock; // the block.number to end the staking vault.
@@ -25,29 +26,22 @@ contract TicketVault is Context, Ownable {
     }
     
     struct UserInfo {
-        address user;
+        address account;
         uint256 totalUserShares; // total user staked in vault.
         uint256 userPercentOfVault; // percentage of total staked.
-        uint256 lastDepositTime; // ?? last time deposited funds.
         uint256 lastClaimBlock; // 
         uint256 totClaimed;
     }
 
     IERC20 public token;
-    address public feeAddress;
-    uint256 public constant withdrawFee = 700; // 7% withdraw fee.
-    uint256 public withdrawFeePeriod; // 12 weeks
-    uint256 public withdrawPenaltyPeriod; // 14 days;
-
     VaultInfo public vault;
-    mapping (address => UserInfo) public users;
+    mapping (address => UserInfo) public user;
 
     error NotAuthorized();
     error JustClaimed();
 
     error DepositFailed();
     error WithdrawFailed();
-    error WithdrawFeesFailed();
     error FailedToClaim();
    
     error NotStarted();
@@ -56,7 +50,7 @@ contract TicketVault is Context, Ownable {
 
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount);
-    event WithdrawWithFees(address indexed user, uint256 amount, uint256 fees);
+  
     event Claimed(address indexed user, uint256 amount);
     event StakingStarted();
     event StakingFinished();
@@ -75,15 +69,15 @@ contract TicketVault is Context, Ownable {
 
     /// @notice modifier checks that user can only claim every 24 hours.
     modifier claimable() {
-        uint256 nextClaim = users[_msgSender()].lastClaimBlock + 6500;
+        uint256 nextClaim = user[_msgSender()].lastClaimBlock + 6500;
         if (block.timestamp < nextClaim) revert JustClaimed();
         _;
     }
 
     /// @notice modifier checks that user is staking.
-    modifier isUser() {
-        if (_msgSender() != users[_msgSender()].user &&
-            users[_msgSender()].totalUserShares > 0
+    modifier isUser(address account) {
+        if (account != user[_msgSender()].account &&
+            user[_msgSender()].totalUserShares > 0
         ) revert NotAuthorized();
         _;
     }
@@ -132,58 +126,54 @@ contract TicketVault is Context, Ownable {
         if (!_deposit(_msgSender(), _amount)) revert DepositFailed();
 
         vault.totalVaultShares += _amount;
-        users[_msgSender()].user = address(_msgSender());
-        users[_msgSender()].totalUserShares += _amount;
-        users[_msgSender()].lastDepositTime = block.timestamp;
+        user[_msgSender()].account = _msgSender();
+        user[_msgSender()].totalUserShares += _amount;
+        (uint256 _userPercentOfVault, ) = _calculateUserReward();
+        user[_msgSender()].userPercentOfVault += _userPercentOfVault;
     }
     
-    /// @notice EarlyWithdraw funds from vault. ATT. 7% early withdraw fee.
-    function earlyWithdraw() external isUser isCollecting isStaking updateVault {
+    /// @notice exit funds from vault. ATT. 7% early withdraw fee.
+    function exit() external isUser(_msgSender()) isCollecting isStaking updateVault {
         require(_msgSender() != address(0), "Not zero address");
-        uint256 _feeAmount;
-        uint256 _withdrawAmount;
-        uint256 _totalUserShares = users[_msgSender()].totalUserShares;
-        users[_msgSender()].totalUserShares = 0;
+        uint256 _totalUserShares = user[_msgSender()].totalUserShares;
+        user[_msgSender()].totalUserShares = 0;
         vault.totalVaultShares -= _totalUserShares;
-
+        (uint256 _feeAmount, uint256 _withdrawAmount) = super._calculateFee(_totalUserShares);
+        
         // if Vault status is collecting. 
         // Pay 7% withdrawFee before withdraw, No rewards!
         if (vault.status == Status.Collecting) {
-            (_feeAmount, _withdrawAmount) = _calculateFee(_totalUserShares);
-            if (!_withdraw(address(feeAddress), _feeAmount)) revert WithdrawFeesFailed();
+            if (!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
             if(!_withdraw(_msgSender(), _withdrawAmount)) revert WithdrawFailed();
         }
 
         // if Vault status is started (ongoing).
         // Pay 7% withdraw fee from stake and reward before withdraw.
         if (vault.status == Status.Started) {
-            (, uint256 _pendingUserReward) = _calculateUserReward();
-            vault.pendingVaultRewards -= _pendingUserReward;
+            (, uint256 _userReward) = _calculateUserReward();
+            vault.pendingVaultRewards -= _userReward;
+            _withdrawAmount += _userReward;
 
-            (_feeAmount, _withdrawAmount) = _calculateFee(_totalUserShares + _pendingUserReward);
-           
-            if(!_withdraw(address(feeAddress), _feeAmount)) revert WithdrawFeesFailed();
+            if(!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
             if(!_withdraw(_msgSender(), _withdrawAmount)) revert WithdrawFailed();
         }
 
-        assert(users[_msgSender()].totalUserShares == 0);
-        emit WithdrawWithFees(_msgSender(), _withdrawAmount, _feeAmount);
+        assert(user[_msgSender()].totalUserShares == 0);
+        emit ExitWithFees(_msgSender(), _withdrawAmount, _feeAmount);
 
     }
 
     /// @notice Remove stake and rewards without extra fees.
-    function collectStakeAndRewards() external isUser isCompleted updateVault {
+    function collectStakeAndRewards() external isUser(_msgSender()) isCompleted updateVault {
         require(_msgSender() != address(0), "Not zero adress");
         (uint256 _userPercentOfVault, uint256 _pendingUserReward) = _calculateUserReward();
         vault.pendingVaultRewards -= _pendingUserReward;
         
-        uint256 _totalUserShares =  users[_msgSender()].totalUserShares;
-        users[_msgSender()].totalUserShares = 0;
-        users[_msgSender()].userPercentOfVault = _userPercentOfVault;
-        users[_msgSender()].totClaimed += _pendingUserReward;
-        users[_msgSender()].lastClaimBlock = block.number;
+        uint256 _totalUserShares =  user[_msgSender()].totalUserShares;
+        user[_msgSender()].totalUserShares = 0;
+        user[_msgSender()].userPercentOfVault = _userPercentOfVault;
         
-        assert(users[_msgSender()].totalUserShares == 0);
+        assert(user[_msgSender()].totalUserShares == 0);
 
         if(!_withdraw(_msgSender(), (_totalUserShares + _pendingUserReward))) revert WithdrawFailed();
         emit Withdraw(_msgSender(), (_totalUserShares + _pendingUserReward));
@@ -209,31 +199,28 @@ contract TicketVault is Context, Ownable {
         emit  StakingFinished();
     }
 
-    /// @notice A user can claim their pendingRewards.
+/*     /// @notice A user can claim their pendingRewards.
     function claim() external isUser isStaking claimable updateVault {
         require(vault.pendingVaultRewards > 0, "No pending rewards");
         (uint256 _userPercentOfVault, uint256 _pendingUserReward) = _calculateUserReward();
         vault.pendingVaultRewards -= _pendingUserReward;
 
-        users[msg.sender].userPercentOfVault = _userPercentOfVault;
-        users[msg.sender].totClaimed += _pendingUserReward;
-        users[msg.sender].lastClaimBlock = block.number;
+        user[_msgSender()].userPercentOfVault = _userPercentOfVault;
+        user[_msgSender()].totClaimed += _pendingUserReward;
+        user[_msgSender()].lastClaimBlock = block.number;
 
         if (!_withdraw(_msgSender(), _pendingUserReward)) revert FailedToClaim();
 
         emit Claimed(_msgSender(), _pendingUserReward);
     }
-
+ */
     /// @notice Get UserInformation.
     /// @return users Information from users mapping.
-    function getUserInfo() external view isUser returns (address, uint256, uint256, uint256, uint256, uint256) {
+    function getUserInfo() external view isUser(_msgSender()) returns (address, uint256, uint256) {
         return (
-            users[_msgSender()].user,
-            users[_msgSender()].totalUserShares,
-            users[_msgSender()].userPercentOfVault,
-            users[_msgSender()].lastDepositTime,
-            users[_msgSender()].lastClaimBlock,
-            users[_msgSender()].totClaimed
+            user[_msgSender()].account,
+            user[_msgSender()].totalUserShares,
+            user[_msgSender()].userPercentOfVault
         );
     } 
 
@@ -242,15 +229,10 @@ contract TicketVault is Context, Ownable {
         return (_pendingVaultRewards);
     }
 
-    /// @notice Internal function to calculate the early withdraw fees.
-    /// @notice return feeAmount and withdrawAmount.
-    function _calculateFee(uint256 _amount) private pure returns (uint256 feeAmount, uint256 withdrawAmount) {
-        feeAmount = _amount * withdrawFee / 10000;
-        withdrawAmount = _amount - feeAmount; 
-    }
+
 
     function _calculateUserReward() private view returns (uint256 userPercentOfVault, uint256 pendingUserReward) {        
-        userPercentOfVault = (users[msg.sender].totalUserShares * 100) / vault.totalVaultShares;
+        userPercentOfVault = (user[msg.sender].totalUserShares * 100) / vault.totalVaultShares;
         pendingUserReward = (vault.pendingVaultRewards * userPercentOfVault) / 100;
     }
 
