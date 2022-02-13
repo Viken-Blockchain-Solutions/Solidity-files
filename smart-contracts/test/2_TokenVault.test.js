@@ -58,9 +58,10 @@ describe("TicketVault", function () {
     it("Should let owner add rewardtokens to the vault", async function () {
       const VaultInfo = await vault.vault();
       await cent.connect(owner).approve(vault.address, this.totReward.toString());
-      await vault.connect(owner).addRewards(this.totReward.toString());
+      let tx = await vault.connect(owner).addRewards(this.totReward.toString());
+      console.log(await tx);
       console.log(VaultInfo);
-      expect(VaultInfo.totalVaultRewards).to.be.equal(this.totReward);
+      expect(VaultInfo.totalVaultRewards.toString()).to.be.equal(this.totReward);
     });
   });
 
