@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract Fees is Ownable {
 
     address public feeAddress;
-    uint256 internal withdrawFeePeriod; // 12 weeks
+    uint256 internal withdrawFeePeriod; // 3 months
     uint256 internal withdrawPenaltyPeriod; // 14 days;
     uint256 public constant withdrawFee = 700; // 7% withdraw fee.
 
@@ -19,7 +19,14 @@ contract Fees is Ownable {
 
     /// @notice Internal function to calculate the early withdraw fees.
     /// @notice return feeAmount and withdrawAmount.
-    function _calculateFee(uint256 _amount) internal pure returns (uint256 feeAmount, uint256 withdrawAmount) {
+    function _calculateFee(uint256 _amount) 
+        internal 
+        pure 
+        returns (
+            uint256 feeAmount, 
+            uint256 withdrawAmount
+        ) 
+    {
         feeAmount = _amount * withdrawFee / 10000;
         withdrawAmount = _amount - feeAmount; 
     }
