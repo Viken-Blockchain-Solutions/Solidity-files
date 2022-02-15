@@ -67,9 +67,9 @@ contract calculations {
         return (feeAmount, withdrawAmount); 
     }
 
-    function getPendingVaultRewards() internal view returns (uint256) {
+    function getPendingVaultRewards() public view returns (uint256) {
         uint256 _pendingVaultRewards = vault.rewardsPerBlock * (block.number - vault.lastRewardUpdateBlock);
-        return (_pendingVaultRewards);
+        return _pendingVaultRewards;
     }
 
     modifier updateVault() {
@@ -100,7 +100,7 @@ contract calculations {
 
 
     function claim() updateVault external {
-        (,uint256 _pendingUserReward) = calculateClaim();
+        (,uint256 _pendingUserReward) = _calculateClaim();
         vault.pendingVaultRewards -= _pendingUserReward;
 
         users[msg.sender].userPercentOfVault = block.timestamp;
@@ -108,7 +108,7 @@ contract calculations {
         users[msg.sender].totClaimed += _pendingUserReward;
     }
 
-    function calculateClaim() public view returns(uint256, uint256) {
+    function _calculateClaim() public view returns(uint256, uint256) {
         require(vault.pendingVaultRewards > 0, "No pending rewards");
         
         uint256 _userPercentOfVault = (users[msg.sender].totalUserShares * 100) / vault.totalVaultShares;
