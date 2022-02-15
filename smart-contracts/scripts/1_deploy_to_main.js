@@ -8,8 +8,6 @@ const {
 require("dotenv/config");
 
 async function main() {
-  const rewardPerBlock = new BN("33812307000000000000");
-
   const [ deployer, fee ]  = await ethers.getSigners();
 
   console.log("Deploying contracts with the account:", deployer.address);
@@ -20,7 +18,7 @@ async function main() {
   const Token = await ethers.getContractFactory("CentaurifyToken");
   
   const token = await Token.deploy();
-  const vault = await Vault.deploy(token.address, fee.address, rewardPerBlock.toString());
+  const vault = await Vault.deploy(token.address, fee.address);
 
 
   console.log(`
@@ -33,7 +31,6 @@ async function main() {
       |    Contract deployed  :
       |       Centaurify token:                          ${token.address} 
       |       TicketVault     :                          ${vault.address}
-      |       reward per block:                          ${rewardPerBlock.toString()}
       |
       ----------------------------------------------------------------------------------
   `);

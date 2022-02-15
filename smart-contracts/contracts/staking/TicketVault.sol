@@ -25,20 +25,16 @@ contract TicketVault is Context, Ownable, Fees {
         uint256 totalVaultRewards; // amount of tokens to reward this vault.
     }
     
-    struct UserInfo {
-        address account;
-        uint256 totalUserShares; // total user staked in vault.
-        uint256 rewards;
-    }
-
     IERC20 public token;
     VaultInfo public vault;
-
-    mapping (address => UserInfo) public user;
+    
+    mapping(address => uint256) private _balances;
+    mapping(address => bool) private _isStakeholder;
 
     error NotAuthorized();
     error NoZeroValues();
     error MaxStaked();
+    error AddRewardsFailed();
     error DepositFailed();
     error WithdrawFailed();
     error NotCollecting();
@@ -50,9 +46,9 @@ contract TicketVault is Context, Ownable, Fees {
     event StakingStarted(uint256 indexed startTimestamp, uint256 indexed stopTimestamp, uint256 ratePerStakedToken);
     event StakingFinished(uint256 indexed stopTimestamp, uint256 ratePerStakedToken);
 
-    /// @notice modifier checks that user is staking.
-    modifier isUser(address account) {
-        if (user[_msgSender()].account != account) revert NotAuthorized();
+    /// @notice modifier checks that a user is staking.
+    modifier isStakeholder(address account) {
+        if (_balances[account] > 0) revert NotAuthorized();
         _;
     }
 
@@ -82,9 +78,9 @@ contract TicketVault is Context, Ownable, Fees {
 
     /// @notice modifier sets a max limit to 1 million tokens staked per user.
     modifier limiter(uint256 amount) {
-        if (user[_msgSender()].totalUserShares > 0){
-            uint256 staking = (user[_msgSender()].totalUserShares += amount);
-            if (staking > 1000000000000000000000000) revert MaxStaked();
+        if (_balances[_msgSender()] > 0){
+            uint256 staking = (_balances[_msgSender()] += amount);
+            if (staking > 1000000e18) revert MaxStaked();
         }
         _;
     }
@@ -96,6 +92,8 @@ contract TicketVault is Context, Ownable, Fees {
         token = _token;
         feeAddress = _feeAddress;
         vault.stakingPeriod = 13 weeks;
+        withdrawFeePeriod = 13 weeks; // 3 months fee period 
+        withdrawPenaltyPeriod = 2 weeks; // 14 days penalty period
         vault.status = Status.Collecting;
     }
 
@@ -108,151 +106,127 @@ contract TicketVault is Context, Ownable, Fees {
         return token.balanceOf(account);
     }
 
+    function userBalance(address account) external view returns (uint256) {
+        return _balances[account];
+    }
+
     /// @notice Add reward amount to the vault.
+    /// @param amount The amount to deposit in Wei.
     /// @dev Restricted to onlyOwner.  
-    function addRewards(uint256 _amount) external onlyOwner {
-        vault.totalVaultRewards = _amount;
-        vault.remainingVaultRewards = _amount;
-        vault.rewardRate = (vault.totalVaultRewards / vault.stakingPeriod);
-        token.safeTransferFrom(_msgSender(), address(this), _amount);
+    function addRewards(uint256 amount) external onlyOwner {
+        vault.totalVaultRewards += amount;
+        vault.remainingVaultRewards += amount;
+        vault.rewardRate = (vault.totalVaultRewards / vault.stakingPeriod) * 1000;
+        if (!_deposit(_msgSender(), amount)) revert AddRewardsFailed();
     }
 
     /// @notice Deposit funds into vault.
-    /// @param _amount The amount to deposit.
-    function deposit(uint256 _amount) external isCollecting limiter(_amount) noZeroValues(_amount) {
-        user[_msgSender()].account = _msgSender();
-        user[_msgSender()].totalUserShares += _amount;
-        vault.totalVaultShares += _amount;
-        vault.ratePerStakedToken = _recalculateRatePerStakedToken();
+    /// @param amount The amount to deposit.
+    function deposit(uint256 amount) external isCollecting limiter(amount) noZeroValues(amount) {
+        _balances[_msgSender()] += amount;
+        vault.totalVaultShares += amount;
+        vault.ratePerStakedToken = (vault.rewardRate / vault.totalVaultShares);
         
-        token.safeTransferFrom(_msgSender(), address(this), _amount);
-        emit Deposit(_msgSender(), _amount);
+        if (!_deposit(_msgSender(), amount)) revert DepositFailed();
+        emit Deposit(_msgSender(), amount);
     }
     
     /// @notice Exit users funds from vault while collecting. ATT. 7% early withdraw fee.
-    function exitCollecting() external isUser(_msgSender()) isCollecting {
+    function exitCollecting() external isStakeholder(_msgSender()) isCollecting {
         require(_msgSender() != address(0), "Not zero address");
 
-        uint256 _totalUserShares = user[_msgSender()].totalUserShares;
-        user[_msgSender()].totalUserShares = 0;
+        uint256 _totalUserShares = _balances[_msgSender()];
+        delete _balances[_msgSender()];
 
         (uint256 _feeAmount, uint256 _withdrawAmount) = super._calculateFee(_totalUserShares);
         
         // Pay 7% withdrawFee before withdraw.
         if (!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
-        if(!_withdraw(address(_msgSender()), _withdrawAmount)) revert WithdrawFailed();
+        if (!_withdraw(address(_msgSender()), _withdrawAmount)) revert WithdrawFailed();
         
         vault.totalVaultShares -= _totalUserShares;
-        vault.ratePerStakedToken = _recalculateRatePerStakedToken();
-        user[_msgSender()].account = address(0);
-        
+        vault.ratePerStakedToken = (vault.rewardRate / vault.totalVaultShares);
+
         emit ExitWithFees(_msgSender(), _withdrawAmount, _feeAmount);
     }
 
     /// @notice Exit funds from vault while staking. ATT. 7% early withdraw fee.
-    function exitStaking() external isUser(_msgSender()) isStaking {
+    function exitStaking() external isStakeholder(_msgSender()) isStaking {
         require(_msgSender() != address(0), "Not zero address");
 
-        uint256 _totalUserShares = user[_msgSender()].totalUserShares;
-        user[_msgSender()].totalUserShares = 0;
+        uint256 _totalUserShares = _balances[_msgSender()];
+        delete _balances[_msgSender()];
 
         (uint256 _feeAmount, uint256 _withdrawAmount) = super._calculateFee(_totalUserShares);
 
         // if withdrawPenaltyPeriod is over, calculate user rewards.
         if (block.timestamp >= (vault.startTimestamp + withdrawPenaltyPeriod)) {
-            (, uint256 _pendingUserReward) = _getUserReward(_totalUserShares);
-            user[_msgSender()].rewards = _pendingUserReward;
+            uint256 _pendingUserReward = ((vault.ratePerStakedToken * _totalUserShares) / 1000) * (block.timestamp - vault.startTimestamp);
             vault.remainingVaultRewards -= _pendingUserReward;
             _withdrawAmount += _pendingUserReward;
         }
 
-        if(!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
-        if(!_withdraw(_msgSender(), _withdrawAmount)) revert WithdrawFailed();
-        
+        // Pay 7% withdrawFee before withdraw.
+        if (!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
+        if (!_withdraw(address(_msgSender()), _withdrawAmount)) revert WithdrawFailed();
+
         vault.totalVaultShares -= _totalUserShares;
 
-        vault.ratePerStakedToken = _recalculateRatePerStakedToken();
-        user[_msgSender()].account = address(0);
-        
         emit ExitWithFees(_msgSender(), _withdrawAmount, _feeAmount);
     }
 
     /// @notice Remove stake and rewards without extra fees.
-    function withdraw() external isUser(_msgSender()) isCompleted {
-        // require(_msgSender() != address(0), "Not zero adress");
+    function withdraw() external isStakeholder(_msgSender()) isCompleted {
+        require(_msgSender() != address(0), "Not zero adress");
         
-        uint256 _totalUserShares =  user[_msgSender()].totalUserShares;
-        user[_msgSender()].totalUserShares = 0;
+        uint256 _totalUserShares =  _balances[_msgSender()];
+        delete _balances[_msgSender()];
     
-        (, uint256 _pendingUserReward) = _getUserReward(_totalUserShares);
-        user[_msgSender()].rewards = _pendingUserReward;
+        uint256 _pendingUserReward = ((vault.ratePerStakedToken * _totalUserShares) / 1000) * (vault.stopTimestamp - vault.startTimestamp);
+        if (_withdraw(_msgSender(), (_totalUserShares + _pendingUserReward))) revert WithdrawFailed();
+        
         vault.remainingVaultRewards -= _pendingUserReward;
-        
-        //uint256 _withdrawAmount = (_totalUserShares + _pendingUserReward);
-
-        token.safeTransfer(_msgSender(), _pendingUserReward);
-        if(!_withdraw(_msgSender(), _totalUserShares)) revert WithdrawFailed();
-        
         vault.totalVaultShares -= _totalUserShares;
 
-        user[_msgSender()].account = address(0);
         emit Withdraw(_msgSender(), _totalUserShares, _pendingUserReward);
     }
 
     /// @notice Set the status to Started.
-    function startVault() external isCollecting onlyOwner {
+    function startStaking() external isCollecting onlyOwner {
         vault.status = Status.Staking;
         vault.startTimestamp = block.timestamp;
         vault.stopTimestamp = vault.startTimestamp + vault.stakingPeriod;
-        vault.ratePerStakedToken = _recalculateRatePerStakedToken();
-        withdrawFeePeriod = 13 weeks; // 3 months fee period 
-        withdrawPenaltyPeriod = 2 weeks; // 14 days penalty period
+        vault.ratePerStakedToken = (vault.rewardRate / vault.totalVaultShares);
 
         emit StakingStarted(vault.startTimestamp, vault.stopTimestamp, vault.ratePerStakedToken);
     }
 
     /// @notice Set the status to completed.
-    function stopVault() external isStaking onlyOwner {
+    function stopStaking() external isStaking onlyOwner {
         vault.status = Status.Completed;
         vault.stopTimestamp = block.timestamp;
         vault.stakingPeriod = vault.stopTimestamp - vault.startTimestamp;
-        vault.rewardRate = vault.totalVaultRewards / vault.stakingPeriod;
-        vault.ratePerStakedToken = _recalculateRatePerStakedToken();
+        vault.rewardRate = (vault.remainingVaultRewards/ vault.stakingPeriod) * 1000;
+        vault.ratePerStakedToken = (vault.rewardRate / vault.totalVaultShares);
+
         emit  StakingFinished(vault.stopTimestamp, vault.ratePerStakedToken);
     }
-
-    /// @notice Internal function to return the userReward.
-    /// @dev used in exit() and withdraw() to calculate user rewards.
-    function _getUserReward(uint256 _totalUserShares)
-        internal
-        view 
-        returns (uint256, uint256) 
-    {
-        uint256 _userStakingPeriod = (block.timestamp - vault.startTimestamp);
-        uint256 _pendingUserReward = (vault.ratePerStakedToken * _totalUserShares) * _userStakingPeriod;
-
-        return (_userStakingPeriod, _pendingUserReward);
-    }
     
-    /// @notice Internal function recalculates the rate per token staked after every exit().
-    function _recalculateRatePerStakedToken() internal view returns (uint256) {
-        return (vault.rewardRate / vault.totalVaultShares);
-    }
-/* 
     /// @notice Internal function to deposit funds to vault.
     /// @param _from The from address that deposits the funds.
     /// @param _amount The amount to be deposited.
-    /// @return true if vaild.
+    /// @return true if valid.
     function _deposit(address _from, uint256 _amount) private returns (bool) {
         token.safeTransferFrom(_from, address(this), _amount);
+        return true;
     }
- */
+ 
     /// @notice Internal function to withdraw funds from the vault.
     /// @param _to The address that receives the withdrawn funds.
     /// @param _amount The amount to be withdrawn.
-    /// @return true if vaild.
-    function _withdraw(address _to, uint256 _amount) private returns (bool) {
-        token.safeTransfer(address(_to), _amount);
+    /// @return true if valid.
+    function _withdraw(address _to, uint256 _amount) private returns (bool){
+        token.safeTransfer(_to, _amount);
         return true;
     }
 
