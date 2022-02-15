@@ -1,5 +1,5 @@
-/// SPDX-License_Identifier: MIT
-pragma solidity 0.8.11;
+// SPDX-License-Identifier: MIT    
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -13,25 +13,26 @@ contract Calculate_fees is Ownable {
 
 
   /// @notice The current performance fee value.
-  /// @dev example: 5 = 0.5%, 10 = 1%, 100 = 10%.
-  uint256 public CURRENT_PERFORMANCE_FEE = 10;
+  /// @dev example: 50 = 0.50%, 100 = 1%, 125 = 1.25%, 500 = 5%, 1000 = 10%.
+  uint256 public CURRENT_PERFORMANCE_FEE = 700;
   error AmountToLow();
 
-  /// @notice Modifier checks that _amount is larger than 0.001 eth or 1000000000000000 Wei.
-  /// @param _amount The amount to calculate fees from;
-  /// @dev _amount has to be nominated in Wei.
-  /// @notice 1e15 = 1000000000000000 or 0.001 eth.
-  modifier minValue(uint256 _amount) {
-      if (_amount < 1e15) revert AmountToLow();
-      _;
-  }
+
 
   /// @notice Internal function to calculate the amount of fee to pay with a transaction.
   /// @param _amount The Wei amount to calculate the fee from.
   /// @dev The _amount has to be nominated in Wei.
   /// @return _feeAmount in Wei. 
   function _calculatePerformanceFee(uint256 _amount) external view returns (uint256 _feeAmount) {
-      _feeAmount = (_amount.div(1000)).mul(CURRENT_PERFORMANCE_FEE);
+      _feeAmount = _amount.mul(CURRENT_PERFORMANCE_FEE).div(10000);     // 24436 gas.
+  }
+
+  /// @notice Internal function to calculate the amount of fee to pay with a transaction.
+  /// @param _amount The Wei amount to calculate the fee from.
+  /// @dev The _amount has to be nominated in Wei.
+  /// @return _feeAmount in Wei. 
+  function _normalCalculatePerformanceFee(uint256 _amount) external view returns (uint256 _feeAmount) {
+      _feeAmount = (_amount * CURRENT_PERFORMANCE_FEE) / 10000;  // 24309 gas.
   }
 
   /// @notice Function to set a new performance fee.
