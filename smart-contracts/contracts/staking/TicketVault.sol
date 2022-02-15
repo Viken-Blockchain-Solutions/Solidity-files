@@ -11,7 +11,7 @@ contract TicketVault is Context, Ownable, Fees {
     using SafeERC20 for IERC20;
 
     /// @notice enum Status contains multiple status.
-    enum Status { Collecting, Started, Completed }
+    enum Status { Collecting, Staking, Completed }
 
     struct VaultInfo {
         Status status; // vault status
@@ -28,6 +28,7 @@ contract TicketVault is Context, Ownable, Fees {
     struct UserInfo {
         address account;
         uint256 totalUserShares; // total user staked in vault.
+        uint256 rewards;
     }
 
     IERC20 public token;
@@ -40,14 +41,14 @@ contract TicketVault is Context, Ownable, Fees {
     error MaxStaked();
     error DepositFailed();
     error WithdrawFailed();
-    error NotStarted();
-    error NotCompleted();
     error NotCollecting();
+    error NotStaking();
+    error NotCompleted();
 
     event Deposit(address indexed user, uint256 amount);
-    event Withdraw(address indexed user, uint256 amount);
-    event StakingStarted(uint256 indexed startTimestamp, uint256 indexed stopTimestamp);
-    event StakingFinished();
+    event Withdraw(address indexed user, uint256 amount, uint256 Rewards);
+    event StakingStarted(uint256 indexed startTimestamp, uint256 indexed stopTimestamp, uint256 ratePerStakedToken);
+    event StakingFinished(uint256 indexed stopTimestamp, uint256 ratePerStakedToken);
 
     /// @notice modifier checks that user is staking.
     modifier isUser(address account) {
@@ -63,7 +64,7 @@ contract TicketVault is Context, Ownable, Fees {
 
     /// @notice modifier checks that staking has status started.
     modifier isStaking() {
-        if (vault.status != Status.Started) revert NotStarted();
+        if (vault.status != Status.Staking) revert NotStaking();
         _;
     }
 
@@ -90,16 +91,12 @@ contract TicketVault is Context, Ownable, Fees {
 
     constructor(
         IERC20 _token, 
-        address _feeAddress,
-        uint256 _totalVaultRewards
+        address _feeAddress
     ) {
         token = _token;
         feeAddress = _feeAddress;
         vault.stakingPeriod = 13 weeks;
         vault.status = Status.Collecting;
-        vault.totalVaultRewards = _totalVaultRewards;
-        vault.remainingVaultRewards = _totalVaultRewards;
-        vault.rewardRate = (_totalVaultRewards / vault.stakingPeriod);
     }
 
     /// @notice receive function reverts and returns the funds to the sender.
@@ -111,6 +108,15 @@ contract TicketVault is Context, Ownable, Fees {
         return token.balanceOf(account);
     }
 
+    /// @notice Add reward amount to the vault.
+    /// @dev Restricted to onlyOwner.  
+    function addRewards(uint256 _amount) external onlyOwner {
+        vault.totalVaultRewards = _amount;
+        vault.remainingVaultRewards = _amount;
+        vault.rewardRate = (vault.totalVaultRewards / vault.stakingPeriod);
+        token.safeTransferFrom(_msgSender(), address(this), _amount);
+    }
+
     /// @notice Deposit funds into vault.
     /// @param _amount The amount to deposit.
     function deposit(uint256 _amount) external isCollecting limiter(_amount) noZeroValues(_amount) {
@@ -119,7 +125,7 @@ contract TicketVault is Context, Ownable, Fees {
         vault.totalVaultShares += _amount;
         vault.ratePerStakedToken = _recalculateRatePerStakedToken();
         
-        if (!_deposit(_msgSender(), _amount)) revert DepositFailed();
+        token.safeTransferFrom(_msgSender(), address(this), _amount);
         emit Deposit(_msgSender(), _amount);
     }
     
@@ -134,7 +140,7 @@ contract TicketVault is Context, Ownable, Fees {
         
         // Pay 7% withdrawFee before withdraw.
         if (!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
-        if(!_withdraw(_msgSender(), _withdrawAmount)) revert WithdrawFailed();
+        if(!_withdraw(address(_msgSender()), _withdrawAmount)) revert WithdrawFailed();
         
         vault.totalVaultShares -= _totalUserShares;
         vault.ratePerStakedToken = _recalculateRatePerStakedToken();
@@ -155,6 +161,7 @@ contract TicketVault is Context, Ownable, Fees {
         // if withdrawPenaltyPeriod is over, calculate user rewards.
         if (block.timestamp >= (vault.startTimestamp + withdrawPenaltyPeriod)) {
             (, uint256 _pendingUserReward) = _getUserReward(_totalUserShares);
+            user[_msgSender()].rewards = _pendingUserReward;
             vault.remainingVaultRewards -= _pendingUserReward;
             _withdrawAmount += _pendingUserReward;
         }
@@ -178,38 +185,40 @@ contract TicketVault is Context, Ownable, Fees {
         user[_msgSender()].totalUserShares = 0;
     
         (, uint256 _pendingUserReward) = _getUserReward(_totalUserShares);
+        user[_msgSender()].rewards = _pendingUserReward;
         vault.remainingVaultRewards -= _pendingUserReward;
         
-        uint256 _withdrawAmount = (_totalUserShares + _pendingUserReward);
+        //uint256 _withdrawAmount = (_totalUserShares + _pendingUserReward);
 
-        if(!_withdraw(_msgSender(), _withdrawAmount)) 
-            revert WithdrawFailed();
+        token.safeTransfer(_msgSender(), _pendingUserReward);
+        if(!_withdraw(_msgSender(), _totalUserShares)) revert WithdrawFailed();
         
         vault.totalVaultShares -= _totalUserShares;
 
         user[_msgSender()].account = address(0);
-        emit Withdraw(_msgSender(), _withdrawAmount);
+        emit Withdraw(_msgSender(), _totalUserShares, _pendingUserReward);
     }
 
     /// @notice Set the status to Started.
     function startVault() external isCollecting onlyOwner {
-        vault.status = Status.Started;
+        vault.status = Status.Staking;
         vault.startTimestamp = block.timestamp;
         vault.stopTimestamp = vault.startTimestamp + vault.stakingPeriod;
-        vault.ratePerStakedToken = (vault.totalVaultShares / vault.rewardRate);
+        vault.ratePerStakedToken = _recalculateRatePerStakedToken();
         withdrawFeePeriod = 13 weeks; // 3 months fee period 
         withdrawPenaltyPeriod = 2 weeks; // 14 days penalty period
 
-        emit StakingStarted(vault.startTimestamp, vault.stopTimestamp);
+        emit StakingStarted(vault.startTimestamp, vault.stopTimestamp, vault.ratePerStakedToken);
     }
 
     /// @notice Set the status to completed.
     function stopVault() external isStaking onlyOwner {
         vault.status = Status.Completed;
         vault.stopTimestamp = block.timestamp;
-        
-        _recalculateRatePerStakedToken();
-        emit  StakingFinished();
+        vault.stakingPeriod = vault.stopTimestamp - vault.startTimestamp;
+        vault.rewardRate = vault.totalVaultRewards / vault.stakingPeriod;
+        vault.ratePerStakedToken = _recalculateRatePerStakedToken();
+        emit  StakingFinished(vault.stopTimestamp, vault.ratePerStakedToken);
     }
 
     /// @notice Internal function to return the userReward.
@@ -229,16 +238,15 @@ contract TicketVault is Context, Ownable, Fees {
     function _recalculateRatePerStakedToken() internal view returns (uint256) {
         return (vault.rewardRate / vault.totalVaultShares);
     }
-
+/* 
     /// @notice Internal function to deposit funds to vault.
     /// @param _from The from address that deposits the funds.
     /// @param _amount The amount to be deposited.
     /// @return true if vaild.
     function _deposit(address _from, uint256 _amount) private returns (bool) {
         token.safeTransferFrom(_from, address(this), _amount);
-        return true;
     }
-
+ */
     /// @notice Internal function to withdraw funds from the vault.
     /// @param _to The address that receives the withdrawn funds.
     /// @param _amount The amount to be withdrawn.
