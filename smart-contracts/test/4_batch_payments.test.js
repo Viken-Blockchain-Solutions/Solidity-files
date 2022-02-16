@@ -13,20 +13,15 @@ const {
 
 describe("BatchPayments", function () {
 
-  let owner, spender, receiver1, receiver2, receiver3, receiver4, receiver5, receiver6, receiver7;
- 
+  let owner, spender, receiver1, receiver2, receiver3, receiver4;
+
   beforeEach(async function () {
     // Get the ContractFactory and Signers here.
-    [owner, spender, receiver1, receiver2, receiver3, receiver4, receiver5, receiver6, receiver7] = await ethers.getSigners();
+    [owner, spender, receiver1, receiver2, receiver3, receiver4] = await ethers.getSigners();
     
     // The bundled BN library is the same one web3 uses under the hood.
-    this.value = new BN(2);
-    this.total = new BN("10");
-    this.sevenT = new BN("7000");
-    this.sixT = new BN("6000");
-    this.fiveT = new BN("5000");
-    this.fourT = new BN("4000");
-    this.threeT = new BN("3000");
+    this.value = new BN("2000000000000000000");
+    this.total = new BN("10000000000000000000");
 
     Token = await ethers.getContractFactory("TestERC20");
     Batch = await ethers.getContractFactory("BatchPayments");
@@ -35,22 +30,31 @@ describe("BatchPayments", function () {
     token = await Token.deploy();
     batch = await Batch.deploy();
 
-    await token.connect(spender).approve(batch.address, "10");
+    await token.connect(owner).transfer(spender.address, "11000000000000000000");
+    await token.connect(spender).approve(batch.address, "10000000000000000000");
+    
   });
 
   describe("Deployment :", function () {
-    it("Should execute a batch transfer", async function () {
+    it("Should execute a batch ERC20 transaction to three accounts", async function () {
       const receipt = await batch.connect(spender).batchERC20Payment(token.address,
-        [ receiver1, receiver2, receiver3, receiver4, receiver5 ], 
-        [ this.value, this.value, this.value, this.value, this.value ]
+        [receiver1.address, receiver2.address, receiver3.address], 
+        ["2000000000000000000", "2000000000000000000", "2000000000000000000"]
       );
   
-       // Event assertions can verify that the arguments are the expected ones.
-      expectEvent(receipt, 'Transfer', { 
-        from: spender,
-        to: reciever1,
-        value: this.value,
-      });
+      expect(await receipt)
+        .to.emit(token, 'Transfer')
+        .withArgs(spender.address, receiver1.address, "2000000000000000000");
+       
+    });
+    it("Should execute a batch Ether transaction to three accounts", async function () {
+      const receipt = await batch.connect(spender).batchEtherPayment(
+        [receiver1.address, receiver2.address, receiver3.address], 
+        ["2000000000000000000", "2000000000000000000", "2000000000000000000"]
+      );
+
+      expect(receipt).to.be.reverted;
+    
     });
   });
 });
