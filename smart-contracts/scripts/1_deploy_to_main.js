@@ -1,16 +1,10 @@
-const {
-  BN,           // Big Number support
-  constants,    // Common constants, like the zero address and largest integers
-  expectEvent,  // Assertions for emitted events
-  expectRevert, // Assertions for transactions that should fail
-} = require('@openzeppelin/test-helpers');
 
 require("dotenv/config");
 
 async function main() {
   const [ deployer, fee ]  = await ethers.getSigners();
 
-  console.log("Deploying contracts with the account:", deployer.address);
+  console.log("Deploying contracts with the account:" );
 
   const devAddr = `${process.env.DEV}`;
   
