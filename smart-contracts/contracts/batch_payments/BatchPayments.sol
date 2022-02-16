@@ -8,9 +8,13 @@ import "@openzeppelin/contracts/utils/Context.sol";
 contract BatchPayments is Context {
     using SafeERC20 for IERC20;
 
+    error TransactionReverted();
+    
+    function recieve() external payable {
+        revert TransactionReverted();
+    }
 
-
-    function batchEther(address[] calldata recipients, uint256[] calldata values) external payable {
+    function batchEtherPayment(address[] calldata recipients, uint256[] calldata values) external payable {
         for (uint256 i = 0; i < recipients.length; i++)
             payable(recipients[i]).transfer(values[i]);
         uint256 balance = address(this).balance;
@@ -20,7 +24,7 @@ contract BatchPayments is Context {
 
 
     /// @notice Costs 77093 gas to tranfer 6e18 to three address.  costs 7351 gas less to execute.
-    function batchERC20(IERC20 token, address[] calldata recipients, uint256[] calldata values) external {
+    function batchERC20Payment(IERC20 token, address[] calldata recipients, uint256[] calldata values) external {
         for (uint256 i = 0; i < recipients.length; i++)
             token.safeTransferFrom(_msgSender(), recipients[i], values[i]);
     }
