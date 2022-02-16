@@ -1,28 +1,20 @@
 // test/3_batch_payments.test.js
-const { accounts, contract } = require('@openzeppelin/test-environment');
 const { BN, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 
 
-
-// Use the different accounts, which are unlocked and funded with Ether
-const [ admin, deployer, user ] = accounts;
-
-// Create a contract object from a compilation artifact
-const BatchContract = contract.fromArtifact('BatchPayments');
-const TokenContract = contract.fromArtifact('TestERC20');
-
 // Start test block
-describe('BatchContract', function () {
-  // Use the different accounts, which are unlocked and funded with Ether
-  const [ admin, deployer, sender, receiver1, receiver2, receiver3 ] = accounts;
-
+describe('BatchContract', function ([ deployer, sender, receiver1, receiver2, receiver3 ]) {
+  // Create a contract object from a compilation artifact
   beforeEach(async function () {
-     // The bundled BN library is the same one web3 uses under the hood.
+    // The bundled BN library is the same one web3 uses under the hood.
     this.value = new BN(2);
-
-    this.batchInstance = await BatchContract.new({ from: owner });
-    this.tokenInstance = await TokenContract.new({ from: owner });
+    
+    const TokenContract = await ethers.getContractFactory("TestERC20");
+    const BatchContract = await ethers.getContractFactory('BatchPayments');
+    
+    this.tokenInstance = await TokenContract.deployed();
+    this.batchInstance = await BatchContract.deployed();
   });
 
   it('updates balances on successful ERC20 transfers', async function () {

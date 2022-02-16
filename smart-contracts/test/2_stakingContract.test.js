@@ -24,7 +24,7 @@ describe("Staking contract", function () {
     // Get the ContractFactory and Signers here.
     [owner, user1, user2] = await ethers.getSigners();
     
-    testERC20Contract = await ethers.getContractFactory("testERC20");
+    testERC20Contract = await ethers.getContractFactory("TestERC20");
     Contract = await ethers.getContractFactory("StakingContract");
 
     testERC20 = await testERC20Contract.deploy();
