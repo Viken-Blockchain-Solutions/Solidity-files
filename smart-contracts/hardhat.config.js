@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-web3");
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-solhint");
@@ -16,7 +17,7 @@ const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;
  */
 module.exports = {
   solidity: {
-    version: "0.8.9",
+    version: "0.8.11",
     settings: {
       optimizer: {
         enabled: true,
@@ -67,3 +68,7 @@ module.exports = {
   }
 };
 
+// task action function receives the Hardhat Runtime Environment as second argument
+task("accounts", "Prints accounts", async (_, { web3 }) => {
+  console.log(await web3.eth.getAccounts());
+});
