@@ -6,263 +6,98 @@ require('@openzeppelin/test-helpers/configure')({
 const { expect } = require("chai");
 const {
   BN,           // Big Number support
-  constants,    // Common constants, like the zero address and largest integers
-  expectEvent,  // Assertions for emitted events
-  expectRevert, // Assertions for transactions that should fail
 } = require('@openzeppelin/test-helpers');
 
 describe("BatchPayments", function () {
 
-  let owner, spender, receiver1, receiver2, receiver3, receiver4;
+  let owner, spender1, spender2, receiver1, receiver2, receiver3;
+  let Token, Batch, EthProxy, Erc20Proxy, token, erc20Proxy, ethProxy, batch;
+  let before1, before2, after1, after2;
+  let referenceExample1 = '0xaaaa';
+  let referenceExample3 = '0xbbbb';
+  let referenceExample2 = '0xcccc';
 
-  beforeEach(async function () {
+  before(async function () {
     // Get the ContractFactory and Signers here.
-    [owner, spender, receiver1, receiver2, receiver3, receiver4] = await ethers.getSigners();
-    
-    // The bundled BN library is the same one web3 uses under the hood.
-    this.value = new BN("2000000000000000000");
-    this.total = new BN("10000000000000000000");
-
+    [owner, spender1, spender2, receiver1, receiver2, receiver3] = await ethers.getSigners();
+ 
     Token = await ethers.getContractFactory("TestERC20");
     Batch = await ethers.getContractFactory("BatchPayments");
+    EthProxy = await ethers.getContractFactory("EthereumProxy");
+    Erc20Proxy = await ethers.getContractFactory("ERC20Proxy");
 
     // deploy contracts
     token = await Token.deploy();
-    batch = await Batch.deploy();
-
-    await token.connect(owner).transfer(spender.address, "11000000000000000000");
-    await token.connect(spender).approve(batch.address, "10000000000000000000");
+    erc20Proxy = await Erc20Proxy.deploy();
+    ethProxy = await EthProxy.deploy();
+    batch = await Batch.deploy(erc20Proxy.address, ethProxy.address);
     
+    await token.connect(owner).mint(spender1.address, 1000000000000000000000000n);
+    await token.connect(owner).mint(spender2.address, 1000000000000000000000000n);
+    await token.connect(spender1).approve(batch.address, 1000000000000000000000000n);
+    await token.connect(spender2).approve(batch.address, 1000000000000000000000000n);
+
+    before1 = await token.connect(spender1).balanceOf(spender1.address);
+    before2 = await token.connect(spender2).balanceOf(spender2.address);
+    
+
   });
 
-  describe("Deployment :", function () {
-    it("Should execute a batch ERC20 transaction to three accounts", async function () {
-      const receipt = await batch.connect(spender).batchERC20Payment(token.address,
-        [receiver1.address, receiver2.address, receiver3.address], 
-        ["2000000000000000000", "2000000000000000000", "2000000000000000000"]
-      );
-  
-      expect(await receipt)
-        .to.emit(token, 'Transfer')
-        .withArgs(spender.address, receiver1.address, "2000000000000000000");
-       
-    });
-    it("Should execute a batch Ether transaction to three accounts", async function () {
-      const receipt = await batch.connect(spender).batchEtherPayment(
-        [receiver1.address, receiver2.address, receiver3.address], 
-        ["2000000000000000000", "2000000000000000000", "2000000000000000000"]
-      );
-
-      expect(receipt).to.be.reverted;
+  it("Should execute a batch of Ether payments to three accounts", async function () {
+    const receipt = await batch.connect(spender1).batchEtherPayment(
+      [receiver1.address, receiver2.address, receiver3.address],
+      [2000000000000000000n, 2000000000000000000n, 2000000000000000000n],
+      { value: 6000000000000000000n, }
+    );
     
+    expect(await receipt).to.emit(batch, 'EthTransfer');
+  });
+
+  it("Should execute a batch of ERC20 payments to three accounts", async function () {
+    await expect(
+      batch.connect(spender1).batchERC20Payment(
+        token.address,
+        [receiver1.address, receiver2.address, receiver3.address], 
+        [2000000000000000000n, 2000000000000000000n, 2000000000000000000n]
+      ))
+      .to.emit(token, 'Transfer')
+      .withArgs(spender1.address, receiver1.address, 2000000000000000000n);
+  });
+
+  it("Should execute multiple ERC20 payments w/ paymentReference, through the ERC20Proxy", async function () {
+    await expect(
+      batch.connect(spender2).batchERC20PaymentWithReference(
+        token.address,
+        [receiver1.address, receiver2.address, receiver3.address],
+        [20, 20, 20],
+        [referenceExample1, referenceExample2, referenceExample3]
+        ))
+        .to.emit(Erc20Proxy, 'TransferWithReference')
+        // transferReference indexes the event log, therefore the keccak256 is stored
+        .withArgs(
+          token.address,
+          receiver1.address,
+          "20",
+          ethers.utils.keccak256(referenceExample1)
+          );
+          
+    it("MetaData:", async function () {
+      after1 = await token.connect(spender1).balanceOf(spender1.address);
+      after2 = await token.connect(spender2).balanceOf(spender2.address);
+      
+      console.log(`
+        Token address      :     ${token.address}
+        ERC20Proxy address :     ${erc20Proxy.address}
+        EthProxy address   :     ${ethProxy.address}
+        Batch address      :     ${batch.address}
+
+        Spender1 token before balance  :     ${balance1},
+        Spender2 token before balance  :     ${balance2}
+        
+        Spender1 token after balance   :     ${after1},
+        Spender2 token after balance   :     ${after2}
+      `)
     });
   });
 });
-
-
-
-
-
-
-
-/**
-  describe("Contract Administration :", function () {
-    it("Should let owner add rewardtokens to the vault", async function () {
-      await cent.connect(owner).approve(vault.address, totReward.toString());
-      await vault.connect(owner).addRewards(totReward.toString());
-      let VaultInfo = await vault.vault();
-
-      expect(VaultInfo.totalVaultRewards.toString()).to.be.equal(totReward.toString());
-    });
-    it("Should allow the owner to start the staking", async function () { 
-      await cent.connect(owner).approve(vault.address, totReward.toString());
-      await vault.connect(owner).addRewards(totReward.toString());
-      await vault.connect(user4).deposit(fourT.toString());
-      await vault.connect(user5).deposit(fiveT.toString());
-      let startStaking = await vault.connect(owner).startStaking();
-      expect(startStaking).to.emit(vault, "StakingStarted");
-
-      let VaultInfo = await vault.vault();
-      expect(VaultInfo.status).to.be.equal(1);
-    })
-  });
-
-  describe("Vault Information :", function () {
-    beforeEach(async function () {
-      await cent.connect(owner).approve(vault.address, totReward.toString());
-      await vault.connect(owner).addRewards(totReward.toString());
-    });
-    it("Should contain the correct data about the vault", async function () {
-      let VaultInfo = await vault.vault();
-      expect(VaultInfo.status).to.be.equal(0);
-      expect(VaultInfo.stakingPeriod.toString()).to.be.equal("7862400");
-      expect(VaultInfo.remainingVaultRewards.toString()).to.be.equal(totReward.toString());
-      expect(VaultInfo.totalVaultRewards.toString()).to.be.equal(totReward.toString());
-    });
-  });
-
-  describe("While Collecting :", function () {
-    beforeEach(async function () {
-      await cent.connect(owner).approve(vault.address, totReward.toString());
-      await vault.connect(owner).addRewards(totReward.toString());
-    });
-    it("Should let User1 and User2 deposit 50000 tokens", async function () {
-      const beforeVaultBalance = await cent.balanceOf(vault.address);
-
-      expect(await vault.connect(user1).deposit(fiveT.toString()))
-      .to.emit(vault, "Deposit")
-        .withArgs(user1.address, fiveT.toString());
-
-      expect(await vault.connect(user2).deposit(fiveT.toString()))
-      .to.emit(vault, "Deposit")
-        .withArgs(user2.address, fiveT.toString());
-      
-      const afterVaultBalance = await cent.balanceOf(vault.address);
-
-      expect(afterVaultBalance.toString()).to.be.equal("2010000");
-    });
-    it("Should have the correct userInfo after a deposit", async function () {
-      await vault.connect(user1).deposit(fiveT.toString());
-      await vault.connect(user2).deposit(fiveT.toString());
-      
-      const userOneInfo = await vault.userBalance(user1.address);
-      const userTwoInfo = await vault.userBalance(user2.address);
-      
-      expect(userOneInfo.toString()).to.be.equal(fiveT.toString());
-      expect(userTwoInfo.toString()).to.be.equal(fiveT.toString());
-    });
-    it("Should have correct total amount of shares in the vault after deposit", async function () {
-      await vault.connect(user1).deposit(fiveT.toString());
-      await vault.connect(user2).deposit(fiveT.toString());
-      
-      let VaultInfo = await vault.vault();
-      const vaultContractBalance = await cent.balanceOf(vault.address);
-      expect(VaultInfo.totalVaultShares.toString()).to.be.equal("10000");
-      expect(vaultContractBalance.toString()).to.be.equal("2010000");
-    });
-    it("Should let User1 exit position and pay 7% withdraw fees", async function () { 
-      await vault.connect(user1).deposit(fiveT.toString());
-      await vault.connect(user2).deposit(fiveT.toString());
-      let feeBefore = await vault.connect(user1).balance(fee.address);
-      let userBefore = await vault.connect(user1).userBalance(user1.address);
-      
-      expect(await vault.connect(user1).exitCollecting())
-        .to.emit(vault, 'ExitWithFees');
-      
-      let feeAfter = await vault.connect(user1).balance(fee.address);
-      let userAfter = await vault.connect(user1).userBalance(user1.address);
-
-      expect(feeBefore.toString()).to.be.equal(userAfter.toString());
-      expect(userBefore.toString()).to.be.equal("5000");
-      expect(feeAfter.toString()).to.be.equal("350");
-      expect(userAfter.toString()).to.be.equal(feeBefore.toString());
-    }); 
-    it("Should let the owner start the stakingpool :", async function () {
-      await vault.connect(user1).deposit(fiveT.toString());
-      await vault.connect(user2).deposit(fiveT.toString());
-      
-      expect(await vault.connect(owner).startStaking())
-        .to.emit(vault, "StakingStarted");
-  
-      let VaultInfo = await vault.vault();
-      expect(await VaultInfo.status).to.be.equal(1);
-    });
-  });
-
-  describe("While Staking: Vault and Stakeholders", function () {
-    beforeEach(async function () {
-      await cent.connect(owner).approve(vault.address, totReward.toString());
-      await vault.connect(owner).addRewards(totReward.toString());
-
-      //Users deposit tokens in vault.
-      await vault.connect(user2).deposit(fiveT.toString());
-      await vault.connect(user5).deposit(fiveT.toString());
-      await vault.connect(owner).startStaking();
-
-      let VaultInfo = await vault.vault();
-      expect(VaultInfo.status).to.equal(1);
-    });
-    it("Should let a user exit staking position and pay the withdraw fee:", async function () {
-
-      let feeBefore = await vault.connect(user5).balance(fee.address);
-      let userBefore = await vault.connect(user5).userBalance(user5.address);
-      
-      expect(await vault.connect(user5).exitStaking())
-        .to.emit(vault, 'ExitWithFees');
-      
-      let feeAfter = await vault.connect(user5).balance(fee.address);
-      let userAfter = await vault.connect(user5).userBalance(user5.address);
-
-      expect(feeBefore.toString()).to.be.equal(userAfter.toString());
-      expect(userBefore.toString()).to.be.equal("5000");
-      expect(feeAfter.toString()).to.be.equal("350");
-      expect(userAfter.toString()).to.be.equal(feeBefore.toString());
-    });
-    it("Should have the correct metadata and values:", async function () {
-      let Vault = await vault.vault();
-      console.log(`
-        VaultInfo :
-              status                  :        ${Vault.status},
-              totalVaultShares        :        ${Vault.totalVaultShares.toString()},
-              startBlock              :        ${Vault.startTimestamp.toString()},
-              stopBlock               :        ${Vault.stopTimestamp.toString()},   
-              stakingPeriod           :        ${Vault.stakingPeriod.toString()},
-              rewardRate              :        ${Vault.rewardRate.toString()},
-              ratePerStakedToken      :        ${Vault.ratePerStakedToken.toString()},
-              remainingRewards        :        ${Vault.remainingVaultRewards.toString()},
-              totalVaultRewards       :        ${Vault.totalVaultRewards.toString()},
-      `);
-      });
-    it("Should let owner stop the stakingpool", async function () {
-      await vault.connect(owner).stopStaking();
-
-      let VaultInfo = await vault.vault();
-      console.log(`
-        VaultInfo :
-              status                  :        ${VaultInfo.status}
-      `);
-      //expect(await VaultInfo.status).to.be.equal(2);
-    });
-  });
-
-  describe("While Completed: Vault and Stakeholders", function () {
-    beforeEach(async function () {
-      // approve vault to deposit tokens.
-      await cent.connect(user1).approve(vault.address, fiveT.toString());
-      await cent.connect(user2).approve(vault.address, fiveT.toString());
-
- 
-      // approve and initialize the vault.
-      await cent.connect(owner).approve(vault.address, totReward.toString());
-      await vault.connect(owner).addRewards(totReward.toString());
-
-      //Users deposit tokens in vault.
-      await vault.connect(user1).deposit(fiveT.toString());
-      await vault.connect(user2).deposit(fiveT.toString());
-      await vault.connect(owner).startStaking();
-
-    });
-    it("Should have the correct metadata and values:", async function () {
-      await vault.connect(owner).stopStaking();
-      let Vault = await vault.vault();
-      console.log(`
-        VaultInfo :
-              status                  :        ${Vault.status},
-              totalVaultShares        :        ${Vault.totalVaultShares.toString()},
-              startBlock              :        ${Vault.startTimestamp.toString()},
-              stopBlock               :        ${Vault.stopTimestamp.toString()},   
-              stakingPeriod           :        ${Vault.stakingPeriod.toString()},
-              rewardRate              :        ${Vault.rewardRate.toString()},
-              ratePerStakedToken      :        ${Vault.ratePerStakedToken.toString()},
-              remainingRewards        :        ${Vault.remainingVaultRewards.toString()},
-              totalVaultRewards       :        ${Vault.totalVaultRewards.toString()},
-      `);
-      });
-    it("Should let user1 withdraw position and rewards:", async function () {
-      await vault.connect(owner).stopStaking();
-      let balance = await vault.connect(user2).userBalance(user2.address);
-      //let tx = await vault.connect(user1).withdraw();
-      console.log(balance.toString());
-      //console.log(tx);
-    });
-    });*/
+''
