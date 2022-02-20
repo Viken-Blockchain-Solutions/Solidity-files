@@ -1,0 +1,4 @@
+{
+    "solidity-va.codelens.report.enable": false,
+    "solidity-va.codelens.funcSigs.enable": false
+}

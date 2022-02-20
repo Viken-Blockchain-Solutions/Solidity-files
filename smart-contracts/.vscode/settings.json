@@ -1,0 +1,7 @@
+{
+    "solidity-va.codelens.funcSigs.enable": false,
+    "solidity-va.codelens.flatten.enable": false,
+    "solidity-va.codelens.drawio.enable": true,
+    "solidity-va.uml.actors.enable": true,
+    "solidity-va.debug.parser.showExceptions": true
+}
