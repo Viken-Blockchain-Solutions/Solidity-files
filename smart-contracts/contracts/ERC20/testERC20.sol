@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 
 contract TestERC20 is ERC20, ERC20Burnable, Ownable, ERC20Permit {
-    constructor() ERC20("testERC20", "TESTTOKEN") ERC20Permit("testERC20") {
+    constructor(uint256 _amount) ERC20("TestERC20", "TESTTOKEN") ERC20Permit("TestERC20") {
         address owner = msg.sender;
         mint(owner, _amount);
     }
