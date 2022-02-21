@@ -6,7 +6,7 @@ async function main() {
   const Vault = await ethers.getContractFactory("TicketVault");
   console.log("about to deploy");
 
-  const vault = await Vault.deploy("0x3d8414bb782Bb679Ca61BB48B77ad5Ba0F10C390", "0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51");
+  const vault = await Vault.deploy("0x3d8414bb782Bb679Ca61BB48B77ad5Ba0F10C390");
 
 
   console.log(`

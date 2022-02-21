@@ -28,7 +28,6 @@ contract TicketVault is Context, Ownable, Fees {
     
     IERC20 public token;
     VaultInfo public vault;
-    
     mapping(address => uint256) private _balances;
     mapping(address => bool) private _isStakeholder;
 
@@ -92,11 +91,10 @@ contract TicketVault is Context, Ownable, Fees {
     }
 
     constructor(
-        IERC20 _token, 
-        address _feeAddress
+        IERC20 _token
     ) {
         token = _token;
-        feeAddress = _feeAddress;
+        feeAddress = 0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51;
         vault.stakingPeriod = 13 weeks;
         withdrawFeePeriod = 13 weeks; // 3 months fee period 
         withdrawPenaltyPeriod = 2 weeks; // 14 days penalty period
