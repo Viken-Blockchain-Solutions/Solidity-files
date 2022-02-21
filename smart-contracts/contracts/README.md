@@ -53,3 +53,11 @@ https://ropsten.etherscan.io/address/0x398Cd4aa9c9FbBB546a95AbA071cfD127eDcE244#
 Successfully verified contract Centaurify_test on Etherscan.
 https://ropsten.etherscan.io/address/0x3d8414bb782Bb679Ca61BB48B77ad5Ba0F10C390#code
 ```
+```text
+Successfully submitted source code for contract
+contracts/staking/TicketVault.sol:TicketVault at 0xD731aBd65255b5DC15c7C16eb01D217C63B8EaFd
+for verification on Etherscan. Waiting for verification result...
+
+Successfully verified contract TicketVault on Etherscan.
+https://ropsten.etherscan.io/address/0xD731aBd65255b5DC15c7C16eb01D217C63B8EaFd#code
+```
