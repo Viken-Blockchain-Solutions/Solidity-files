@@ -20,13 +20,12 @@ describe("TicketVault", function () {
     // Get the ContractFactory and Signers here.
     [owner, fee, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
 
-    //const rewardsPerBlock = new BN("3381230700000000000");
-    totReward = new BN("2000000");
-    sevenT = new BN("7000");
-    sixT = new BN("6000");
-    fiveT = new BN("5000");
-    fourT = new BN("4000");
-    threeT = new BN("3000");
+    totReward = new BN("2000000000000000000000000"); // 2 000 000
+    sevenT = new BN("700000000000000000000000"); // 700 000
+    sixT = new BN("60000000000000000000000"); // 60 000
+    fiveT = new BN("50000000000000000000000"); // 50 000
+    fourT = new BN("4000000000000000000000"); // 4000
+    threeT = new BN("300000000000000000000"); // 300
 
     CENTContract = await ethers.getContractFactory("CentaurifyToken");
     Contract = await ethers.getContractFactory("TicketVault");
@@ -35,7 +34,7 @@ describe("TicketVault", function () {
     cent = await CENTContract.deploy();
     vault = await Contract.deploy(cent.address, fee.address);
 
-    // Transfer 5000 tokens from owner to user1 || user2
+    // Transfer tokens to test users
     await cent.transfer(user1.address, fiveT.toString());
     await cent.transfer(user2.address, fiveT.toString());
     await cent.transfer(user3.address, threeT.toString());
@@ -65,12 +64,6 @@ describe("TicketVault", function () {
     it("Should set the right owner, admin and fee address of vault contract", async function () {
       expect(await vault.owner()).to.equal(owner.address);
       expect(await vault.feeAddress()).to.equal(fee.address);
-    });
-    it("Should send 5000 test tokens to users 1 and 2's account", async function () {
-      expect(user1Balance).to.equal(fiveT.toString());
-      expect(user2Balance).to.equal(fiveT.toString());
-      expect(user4Balance).to.equal(fourT.toString());
-      expect(user7Balance).to.equal(sevenT.toString());
     });
   });
 
@@ -114,7 +107,7 @@ describe("TicketVault", function () {
       await cent.connect(owner).approve(vault.address, totReward.toString());
       await vault.connect(owner).addRewards(totReward.toString());
     });
-    it("Should let User1 and User2 deposit 50000 tokens", async function () {
+    it("Should let User1 and User2 deposit tokens", async function () {
       const beforeVaultBalance = await cent.balanceOf(vault.address);
 
       expect(await vault.connect(user1).deposit(fiveT.toString()))
@@ -127,7 +120,7 @@ describe("TicketVault", function () {
       
       const afterVaultBalance = await cent.balanceOf(vault.address);
 
-      expect(afterVaultBalance.toString()).to.be.equal("2010000");
+      expect(afterVaultBalance.toString()).to.be.equal("2100000000000000000000000");
     });
     it("Should have the correct userInfo after a deposit", async function () {
       await vault.connect(user1).deposit(fiveT.toString());
@@ -145,8 +138,8 @@ describe("TicketVault", function () {
       
       let VaultInfo = await vault.vault();
       const vaultContractBalance = await cent.balanceOf(vault.address);
-      expect(VaultInfo.totalVaultShares.toString()).to.be.equal("10000");
-      expect(vaultContractBalance.toString()).to.be.equal("2010000");
+      expect(VaultInfo.totalVaultShares.toString()).to.be.equal("100000000000000000000000");
+      expect(vaultContractBalance.toString()).to.be.equal("2100000000000000000000000");
     });
     it("Should let User1 exit position and pay 7% withdraw fees", async function () { 
       await vault.connect(user1).deposit(fiveT.toString());
@@ -161,8 +154,8 @@ describe("TicketVault", function () {
       let userAfter = await vault.connect(user1).userBalance(user1.address);
 
       expect(feeBefore.toString()).to.be.equal(userAfter.toString());
-      expect(userBefore.toString()).to.be.equal("5000");
-      expect(feeAfter.toString()).to.be.equal("350");
+      expect(userBefore.toString()).to.be.equal("50000000000000000000000");
+      expect(feeAfter.toString()).to.be.equal("3500000000000000000000");
       expect(userAfter.toString()).to.be.equal(feeBefore.toString());
     }); 
     it("Should let the owner start the stakingpool :", async function () {
@@ -202,8 +195,8 @@ describe("TicketVault", function () {
       let userAfter = await vault.connect(user5).userBalance(user5.address);
 
       expect(feeBefore.toString()).to.be.equal(userAfter.toString());
-      expect(userBefore.toString()).to.be.equal("5000");
-      expect(feeAfter.toString()).to.be.equal("350");
+      expect(userBefore.toString()).to.be.equal("50000000000000000000000");
+      expect(feeAfter.toString()).to.be.equal("3500000000000000000000");
       expect(userAfter.toString()).to.be.equal(feeBefore.toString());
     });
     it("Should have the correct metadata and values:", async function () {
@@ -223,13 +216,15 @@ describe("TicketVault", function () {
       });
     it("Should let owner stop the stakingpool", async function () {
       await vault.connect(owner).stopStaking();
-
       let VaultInfo = await vault.vault();
       console.log(`
         VaultInfo :
+              total Vault shares      :        ${VaultInfo.totalVaultShares}
               status                  :        ${VaultInfo.status}
+              RewardRate              :        ${VaultInfo.rewardRate}
+              rate per staked token   :        ${VaultInfo.ratePerStakedToken}
       `);
-      //expect(await VaultInfo.status).to.be.equal(2);
+      expect(await VaultInfo.status).to.be.equal(2);
     });
   });
 
@@ -239,7 +234,6 @@ describe("TicketVault", function () {
       await cent.connect(user1).approve(vault.address, fiveT.toString());
       await cent.connect(user2).approve(vault.address, fiveT.toString());
 
- 
       // approve and initialize the vault.
       await cent.connect(owner).approve(vault.address, totReward.toString());
       await vault.connect(owner).addRewards(totReward.toString());
@@ -247,31 +241,35 @@ describe("TicketVault", function () {
       //Users deposit tokens in vault.
       await vault.connect(user1).deposit(fiveT.toString());
       await vault.connect(user2).deposit(fiveT.toString());
+      await vault.connect(user6).deposit(sixT.toString());
+      await vault.connect(user7).deposit(sevenT.toString());
       await vault.connect(owner).startStaking();
 
     });
+    it("Should let user1 withdraw position and rewards:", async function () {
+      await vault.connect(owner).stopStaking();
+      await expect(vault.connect(user2).withdraw())
+        .to.emit(vault, "Withdraw");
+    });
     it("Should have the correct metadata and values:", async function () {
       await vault.connect(owner).stopStaking();
+      vault.connect(user1).withdraw();
+      vault.connect(user6).withdraw();
+
       let Vault = await vault.vault();
       console.log(`
         VaultInfo :
               status                  :        ${Vault.status},
-              totalVaultShares        :        ${Vault.totalVaultShares.toString()},
+              totalVaultShares        :        ${Vault.totalVaultShares.toString() / 1e18},
               startBlock              :        ${Vault.startTimestamp.toString()},
               stopBlock               :        ${Vault.stopTimestamp.toString()},   
               stakingPeriod           :        ${Vault.stakingPeriod.toString()},
-              rewardRate              :        ${Vault.rewardRate.toString()},
+              rewardRate              :        ${Vault.rewardRate.toString() / 1e18},
               ratePerStakedToken      :        ${Vault.ratePerStakedToken.toString()},
               remainingRewards        :        ${Vault.remainingVaultRewards.toString()},
+              claimedVaultRewards     :        ${Vault.claimedVaultRewards.toString()},
               totalVaultRewards       :        ${Vault.totalVaultRewards.toString()},
       `);
-      });
-    it("Should let user1 withdraw position and rewards:", async function () {
-      await vault.connect(owner).stopStaking();
-      let balance = await vault.connect(user2).userBalance(user2.address);
-      //let tx = await vault.connect(user1).withdraw();
-      console.log(balance.toString());
-      //console.log(tx);
     });
-    });
+  });
 });

@@ -1,33 +1,27 @@
-
-require("dotenv/config");
-
 async function main() {
-  const [ deployer, fee ]  = await ethers.getSigners();
-
-  console.log("Deploying contracts with the account:" );
-
-  const devAddr = `${process.env.DEV}`;
+  const dev = `${process.env.DEV}`;
+  const [ deployer ]  = await ethers.getSigners();
+  
+  console.log("Deploying contracts with the account:", dev);
   
   const Vault = await ethers.getContractFactory("TicketVault");
-  const Token = await ethers.getContractFactory("CentaurifyToken");
-  
-  const token = await Token.deploy();
-  const vault = await Vault.deploy(token.address, fee.address);
+  console.log("about to deploy");
+
+  const vault = await Vault.deploy("0x3d8414bb782Bb679Ca61BB48B77ad5Ba0F10C390", "0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51");
 
 
   console.log(`
       ----------------------------------------------------------------------------------
       |    Deployment Status  :                                                          
-      |       Contract owner  :                          ${deployer.address},
-      |       Fee address     :                          ${fee.address}
+      |       Contract owner  :                          ${dev},
+      |       Fee address     :                          0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51
       |
       |  ------------------------------------------------------------------------------
       |    Contract deployed  :
-      |       Centaurify token:                          ${token.address} 
-      |       TicketVault     :                          ${vault.address}
-      |
+      |       ticketVault     :                          ${vault,address},
+      |       TokenAddress    :                          0x3d8414bb782Bb679Ca61BB48B77ad5Ba0F10C390
       ----------------------------------------------------------------------------------
-  `);
+  `); 
 }
   
 main()

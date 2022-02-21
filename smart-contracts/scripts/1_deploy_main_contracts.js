@@ -11,7 +11,7 @@ async function main() {
 
   // Deploy smart-contracts
   const token = await Token_contract.deploy();
-  const testerc20 = await TestToken_contract.deploy('100000000000000000000000000000');
+  const testerc20 = await TestToken_contract.deploy();
   const trust = await Trust_fund.deploy();
   const ticket = await Ticket.deploy(token.address, fee.address);
   const erc20Proxy = await Erc20Proxy.deploy();

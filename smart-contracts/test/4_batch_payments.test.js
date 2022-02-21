@@ -23,14 +23,12 @@ describe("BatchPayments", function () {
  
     Token = await ethers.getContractFactory("TestERC20");
     Batch = await ethers.getContractFactory("BatchPayments");
-    EthProxy = await ethers.getContractFactory("EthereumProxy");
     Erc20Proxy = await ethers.getContractFactory("ERC20Proxy");
 
     // deploy contracts
     token = await Token.deploy();
     erc20Proxy = await Erc20Proxy.deploy();
-    ethProxy = await EthProxy.deploy();
-    batch = await Batch.deploy(erc20Proxy.address, ethProxy.address);
+    batch = await Batch.deploy(erc20Proxy.address);
     
     await token.connect(owner).mint(spender1.address, 1000000000000000000000000n);
     await token.connect(owner).mint(spender2.address, 1000000000000000000000000n);
@@ -72,14 +70,7 @@ describe("BatchPayments", function () {
         [20, 20, 20],
         [referenceExample1, referenceExample2, referenceExample3]
         ))
-        .to.emit(Erc20Proxy, 'TransferWithReference')
-        // transferReference indexes the event log, therefore the keccak256 is stored
-        .withArgs(
-          token.address,
-          receiver1.address,
-          "20",
-          ethers.utils.keccak256(referenceExample1)
-          );
+        .to.emit(token, 'Transfer');
           
     it("MetaData:", async function () {
       after1 = await token.connect(spender1).balanceOf(spender1.address);

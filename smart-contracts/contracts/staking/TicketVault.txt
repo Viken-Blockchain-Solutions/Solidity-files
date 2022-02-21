@@ -186,8 +186,8 @@ contract TicketVault is Context, Ownable, Fees {
     
         uint256 _pendingUserReward = (vault.ratePerStakedToken * _totalUserShares) * vault.stakingPeriod;
 
-        if (_withdraw(_msgSender(), _pendingUserReward)) revert RewardFailed();
-        if (_withdraw(_msgSender(), _totalUserShares)) revert WithdrawFailed();
+        if (!_withdraw(_msgSender(), _pendingUserReward)) revert RewardFailed();
+        if (!_withdraw(_msgSender(), _totalUserShares)) revert WithdrawFailed();
         
         vault.remainingVaultRewards -= _pendingUserReward;
         vault.totalVaultShares -= _totalUserShares;

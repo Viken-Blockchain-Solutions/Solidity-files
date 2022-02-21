@@ -51,7 +51,7 @@ module.exports = {
     ropsten: {
       url: ropstenApiKey,
       chainId: 3,
-      account: [process.env.ACCOUNT_PRIVATE_KEY]
+      account: [`${ process.env.ACCOUNT_PRIVATE_KEY }`]
     },
   },
   paths: {
