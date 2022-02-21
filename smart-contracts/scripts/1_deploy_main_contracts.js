@@ -13,7 +13,7 @@ async function main() {
   const token = await Token_contract.deploy();
   const testerc20 = await TestToken_contract.deploy();
   const trust = await Trust_fund.deploy();
-  const ticket = await Ticket.deploy(token.address, fee.address);
+  const ticket = await Ticket.deploy(token.address);
   const erc20Proxy = await Erc20Proxy.deploy();
   const batch = await Batch.deploy(erc20Proxy.address);
 

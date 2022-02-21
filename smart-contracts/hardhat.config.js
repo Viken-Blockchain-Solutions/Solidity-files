@@ -6,9 +6,10 @@ require("@nomiclabs/hardhat-solhint");
 require("@nomiclabs/hardhat-ganache");
 require("hardhat-docgen");
 require("hardhat-spdx-license-identifier");
-require("dotenv/config");
+require("dotenv").config();
 
 const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
+const polyScanApiKey = process.env.POLYSCAN_API_KEY;
 const rinkebyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
 const mumbaiApiKey = process.env.ALCHEMY_APIKEY_MUMBAI;
 const ropstenApiKey = 'https://eth-ropsten.alchemyapi.io/v2/OLv9cT3ZinE2oSLcCo5zBPi7ZamWBkNN';
@@ -57,12 +58,12 @@ module.exports = {
     mumbai: {
       url: mumbaiApiKey,
       chainId:80001,
-      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`],
+      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`]
     },
     polygon: {
       chainId:137,
       url: mumbaiApiKey,
-      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`],
+      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`]
     },
   },
   paths: {
@@ -76,6 +77,9 @@ module.exports = {
   },
   etherscan: {
     apiKey: etherScanApiKey,
+  },
+  polyscan: {
+    apiKey: polyScanApiKey,
   }
 };
 
