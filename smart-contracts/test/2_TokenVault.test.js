@@ -63,7 +63,7 @@ describe("TicketVault", function () {
   describe("Deployment :", function () {
     it("Should set the right owner, admin and fee address of vault contract", async function () {
       expect(await vault.owner()).to.equal(owner.address);
-      expect(await vault.feeAddress()).to.equal(fee.address);
+      expect(await vault.feeAddress()).to.equal("0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51");
     });
   });
 
@@ -144,13 +144,13 @@ describe("TicketVault", function () {
     it("Should let User1 exit position and pay 7% withdraw fees", async function () { 
       await vault.connect(user1).deposit(fiveT.toString());
       await vault.connect(user2).deposit(fiveT.toString());
-      let feeBefore = await vault.connect(user1).balance(fee.address);
+      let feeBefore = await vault.connect(user1).balance("0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51");
       let userBefore = await vault.connect(user1).userBalance(user1.address);
       
       expect(await vault.connect(user1).exitCollecting())
         .to.emit(vault, 'ExitWithFees');
       
-      let feeAfter = await vault.connect(user1).balance(fee.address);
+      let feeAfter = await vault.connect(user1).balance("0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51");
       let userAfter = await vault.connect(user1).userBalance(user1.address);
 
       expect(feeBefore.toString()).to.be.equal(userAfter.toString());
@@ -185,13 +185,13 @@ describe("TicketVault", function () {
     });
     it("Should let a user exit staking position and pay the withdraw fee:", async function () {
 
-      let feeBefore = await vault.connect(user5).balance(fee.address);
+      let feeBefore = await vault.connect(user5).balance("0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51");
       let userBefore = await vault.connect(user5).userBalance(user5.address);
       
       expect(await vault.connect(user5).exitStaking())
         .to.emit(vault, 'ExitWithFees');
       
-      let feeAfter = await vault.connect(user5).balance(fee.address);
+      let feeAfter = await vault.connect(user5).balance("0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51");
       let userAfter = await vault.connect(user5).userBalance(user5.address);
 
       expect(feeBefore.toString()).to.be.equal(userAfter.toString());
