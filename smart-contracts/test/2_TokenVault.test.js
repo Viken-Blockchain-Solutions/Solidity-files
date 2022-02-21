@@ -32,7 +32,7 @@ describe("TicketVault", function () {
 
     // deploy contracts
     cent = await CENTContract.deploy();
-    vault = await Contract.deploy(cent.address, fee.address);
+    vault = await Contract.deploy(cent.address);
 
     // Transfer tokens to test users
     await cent.transfer(user1.address, fiveT.toString());
