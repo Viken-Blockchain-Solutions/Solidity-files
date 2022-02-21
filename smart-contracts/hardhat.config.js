@@ -10,6 +10,7 @@ require("dotenv/config");
 
 const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
 const rinkebyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
+const mumbaiApiKey = process.env.ALCHEMY_APIKEY_MUMBAI;
 const ropstenApiKey = 'https://eth-ropsten.alchemyapi.io/v2/OLv9cT3ZinE2oSLcCo5zBPi7ZamWBkNN';
 
 /**
@@ -46,12 +47,22 @@ module.exports = {
     rinkeby: {
       url: rinkebyApiKey,
       chainId: 4,
-      accounts: [process.env.ACCOUNT_PRIVATE_KEY]
+      account: [process.env.ACCOUNT_PRIVATE_KEY]
     },
     ropsten: {
       url: ropstenApiKey,
       chainId: 3,
       accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`]
+    }, 
+    mumbai: {
+      url: mumbaiApiKey,
+      chainId:80001,
+      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`],
+    },
+    polygon: {
+      chainId:137,
+      url: mumbaiApiKey,
+      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`],
     },
   },
   paths: {
