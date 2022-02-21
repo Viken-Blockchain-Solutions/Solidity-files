@@ -10,7 +10,7 @@ require("dotenv/config");
 
 const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
 const rinkebyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
-const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;
+const ropstenApiKey = 'https://eth-ropsten.alchemyapi.io/v2/OLv9cT3ZinE2oSLcCo5zBPi7ZamWBkNN';
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -46,12 +46,12 @@ module.exports = {
     rinkeby: {
       url: rinkebyApiKey,
       chainId: 4,
-      account: [process.env.ACCOUNT_PRIVATE_KEY]
+      accounts: [process.env.ACCOUNT_PRIVATE_KEY]
     },
     ropsten: {
       url: ropstenApiKey,
       chainId: 3,
-      account: [`${ process.env.ACCOUNT_PRIVATE_KEY }`]
+      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`]
     },
   },
   paths: {
