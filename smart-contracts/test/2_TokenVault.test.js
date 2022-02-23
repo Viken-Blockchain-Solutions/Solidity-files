@@ -44,7 +44,7 @@ describe("TicketVault", function () {
     await cent.transfer(user7.address, sevenT.toString());
 
     user1Balance = await cent.balanceOf(user1.address);
-    user2Balance = await cent.balanceOf(user2.address);
+    user2Balance = await vault.userBalance(user2.address);
     user3Balance = await cent.balanceOf(user3.address);
     user4Balance = await cent.balanceOf(user4.address);
     user5Balance = await cent.balanceOf(user5.address);
@@ -209,7 +209,6 @@ describe("TicketVault", function () {
               stopBlock               :        ${Vault.stopTimestamp.toString()},   
               stakingPeriod           :        ${Vault.stakingPeriod.toString()},
               rewardRate              :        ${Vault.rewardRate.toString()},
-              ratePerStakedToken      :        ${Vault.ratePerStakedToken.toString()},
               remainingRewards        :        ${Vault.remainingVaultRewards.toString()},
               totalVaultRewards       :        ${Vault.totalVaultRewards.toString()},
       `);
@@ -217,13 +216,6 @@ describe("TicketVault", function () {
     it("Should let owner stop the stakingpool", async function () {
       await vault.connect(owner).stopStaking();
       let VaultInfo = await vault.vault();
-      console.log(`
-        VaultInfo :
-              total Vault shares      :        ${VaultInfo.totalVaultShares}
-              status                  :        ${VaultInfo.status}
-              RewardRate              :        ${VaultInfo.rewardRate}
-              rate per staked token   :        ${VaultInfo.ratePerStakedToken}
-      `);
       expect(await VaultInfo.status).to.be.equal(2);
     });
   });
@@ -241,20 +233,46 @@ describe("TicketVault", function () {
       //Users deposit tokens in vault.
       await vault.connect(user1).deposit(fiveT.toString());
       await vault.connect(user2).deposit(fiveT.toString());
-      await vault.connect(user6).deposit(sixT.toString());
-      await vault.connect(user7).deposit(sevenT.toString());
+      await vault.connect(user5).deposit(fiveT.toString());
+      await vault.connect(user6).deposit(fiveT.toString());
+      await vault.connect(user7).deposit(fiveT.toString());
       await vault.connect(owner).startStaking();
-
     });
-    it("Should let user1 withdraw position and rewards:", async function () {
+    it("Should let all users withdraw their position and rewards:", async function () {
       await vault.connect(owner).stopStaking();
+      
+      await expect(vault.connect(user6).withdraw())
+      .to.emit(vault, "Withdraw")
+      .withArgs(user6.address, fiveT.toString(), "400000000000000000000000");
+      await expect(vault.connect(user7).withdraw())
+      .to.emit(vault, "Withdraw")
+      .withArgs(user7.address, fiveT.toString(), "400000000000000000000000");
+      await expect(vault.connect(user1).withdraw())
+      .to.emit(vault, "Withdraw")
+      .withArgs(user1.address, fiveT.toString(), "396000000000000000000000");
       await expect(vault.connect(user2).withdraw())
-        .to.emit(vault, "Withdraw");
+      .to.emit(vault, "Withdraw")
+      .withArgs(user2.address, fiveT.toString(), "402000000000000000000000");
+      await expect(vault.connect(user5).withdraw())
+      .to.emit(vault, "Withdraw")
+      .withArgs(user5.address, fiveT.toString(), "402000000000000000000000");
+      expect(vault)
+      let VaultInfo = await vault.vault();
+      console.log(`
+        VaultInfo :
+              status                  :        ${VaultInfo.status}
+              total Vault shares      :        ${VaultInfo.totalVaultShares / 1e18}
+              PendingVaultRewards     :        ${VaultInfo.pendingVaultRewards / 1e18}
+              Claimed Rewards         :        ${VaultInfo.claimedVaultRewards / 1e18}
+      `);
     });
     it("Should have the correct metadata and values:", async function () {
       await vault.connect(owner).stopStaking();
-      vault.connect(user1).withdraw();
-      vault.connect(user6).withdraw();
+
+      await vault.connect(user1).withdraw();
+      await vault.connect(user2).withdraw();
+      await vault.connect(user6).withdraw();
+      await vault.connect(user7).withdraw();
 
       let Vault = await vault.vault();
       console.log(`
@@ -265,10 +283,10 @@ describe("TicketVault", function () {
               stopBlock               :        ${Vault.stopTimestamp.toString()},   
               stakingPeriod           :        ${Vault.stakingPeriod.toString()},
               rewardRate              :        ${Vault.rewardRate.toString() / 1e18},
-              ratePerStakedToken      :        ${Vault.ratePerStakedToken.toString()},
-              remainingRewards        :        ${Vault.remainingVaultRewards.toString()},
-              claimedVaultRewards     :        ${Vault.claimedVaultRewards.toString()},
-              totalVaultRewards       :        ${Vault.totalVaultRewards.toString()},
+              PendingVaultRewards     :        ${Vault.pendingVaultRewards / 1e18}
+              remainingRewards        :        ${Vault.remainingVaultRewards / 1e18},
+              claimedVaultRewards     :        ${Vault.claimedVaultRewards / 1e18},
+              totalVaultRewards       :        ${Vault.totalVaultRewards / 1e18},
       `);
     });
   });
