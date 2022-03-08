@@ -25,14 +25,14 @@ User features:
 
 ## Documentation
 
-[Documentation](https://github.com/CentaurifyOrg/smart_contracts/blob/main/contracts/Staking/TicketVault_docs.md)
+[Documentation]()
 
 ## Run Locally
 
 Clone the project:
 
 ```bash
-  git clone https://github.com/CentaurifyOrg/smart_contracts.git
+  git clone https://github.com/
 ```
 
 Go to the project directory:
