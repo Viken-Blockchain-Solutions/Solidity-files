@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Collection of Solidity smart-contracts",
   "main": "index.js",
-  "author": "Ivo Garofalo - @Viken Blockchain Solutions",
+  "author": "@Dadogg80 - @Viken Blockchain Solutions",
   "license": "MIT",
   "private": false,
   "scripts": {

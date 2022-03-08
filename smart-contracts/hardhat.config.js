@@ -20,6 +20,7 @@ const ropstenApiKey = 'https://eth-ropsten.alchemyapi.io/v2/OLv9cT3ZinE2oSLcCo5z
 module.exports = {
   solidity: {
     version: "0.8.11",
+    version: "0.8.12",
     settings: {
       optimizer: {
         enabled: true,

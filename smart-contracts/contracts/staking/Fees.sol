@@ -5,10 +5,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Fees is Ownable {
 
-    address public feeAddress;
-    uint256 internal withdrawFeePeriod; // 3 months
-    uint256 internal withdrawPenaltyPeriod; // 14 days;
-    uint256 public constant withdrawFee = 700; // 7% withdraw fee.
+    address public feeAddress; // deafult Owner account.
+    uint256 internal withdrawFeePeriod; // default 3 months.
+    uint256 internal withdrawPenaltyPeriod; // default 14 days.
+    uint256 internal withdrawFee; // default 7%.
 
     error ExitFeesFailed();
 
@@ -18,7 +18,7 @@ contract Fees is Ownable {
     /// @notice return feeAmount and withdrawAmount.
     function _calculateFee(uint256 _amount) 
         internal 
-        pure 
+        view 
         returns (
             uint256 feeAmount, 
             uint256 withdrawAmount
@@ -28,7 +28,18 @@ contract Fees is Ownable {
         withdrawAmount = _amount - feeAmount; 
     }
 
-    function setFeeAddress(address newFeeAddress) external onlyOwner {
-        feeAddress = address(newFeeAddress);
+    /// @notice Admin function to set a new fee address.
+    function setFeeAddress(address _newFeeAddress) external onlyOwner {
+        feeAddress = _newFeeAddress;
+    }
+    /// @notice Admin function to set a new withdraw fee.
+    /// @notice example: 50 = 0.5%, 100 = 1%, 200 = 2%, 1000 = 10%.
+    function setWithdrawFee(uint256 _newWithdrawFee) external onlyOwner {
+        withdrawFee = _newWithdrawFee;
+    }
+
+    /// @notice Function returns the current withdraw fee.
+    function getWithdrawFee() external view returns (uint256){
+        return withdrawFee;
     }
 }

@@ -3,23 +3,25 @@ async function main() {
   
   console.log("Deploying contracts with the account:", deployer.address);
  
-  const Cent = await ethers.getContractFactory("CentaurifyToken");
   const Vault = await ethers.getContractFactory("TicketVault");
 
-  const cent = await Cent.deploy();
-  const vault = await Vault.deploy(cent.address);
+  const token = "CONTRACT_ADDRESS";
+  const vault = await Vault.deploy(token);
 
+  const feeAddress = await vault.connect(deployer).feeAddress();
+  const VaultInfo = await vault.vault();
 
   console.log(`
       ----------------------------------------------------------------------------------
       |    Deployment Status  :                                                          
-      |       Contract owner  :                          ${deployer.address}
-      |       Fee address     :                          0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51
+      |       Contract owner  :         ${deployer.address}
+      |       Fee address     :         ${feeAddress}
       |
       |  ------------------------------------------------------------------------------
       |    Contract deployed  :
-      |       TokenAddress    :                          ${cent.address}
-      |       ticketVault     :                          ${vault.address}
+      |       TokenAddress    :         ${token}
+      |       TicketVault     :         ${vault.address}
+      |       StakingPeriod   :         ${VaultInfo.stakingPeriod} Sec.
       ----------------------------------------------------------------------------------
   `); 
 }

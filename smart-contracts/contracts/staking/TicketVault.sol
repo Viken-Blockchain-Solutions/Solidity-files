@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.11;
+pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
@@ -15,20 +15,24 @@ contract TicketVault is Context, Ownable, Fees {
 
     struct VaultInfo {
         Status status; // vault status
-        uint256 totalVaultShares; // total tokens deposited into Vault.
         uint256 stakingPeriod; // the timestamp length of staking vault.
         uint256 startTimestamp;  // block.number when the vault start accouring rewards.
         uint256 stopTimestamp; // the block.number to end the staking vault.
-        uint256 rewardRate; // rewardRate is totalVaultRewards / stakingPeriod.
+        uint256 totalVaultShares; // total tokens deposited into Vault.
+        uint256 totalVaultRewards; // amount of tokens to reward this vault.
+    }
+
+    struct RewardInfo {
         uint256 lastRewardUpdateTimeStamp;
+        uint256 rewardRate; // rewardRate is totalVaultRewards / stakingPeriod.
         uint256 pendingVaultRewards;
         uint256 claimedVaultRewards; // claimed rewards for the vault.
         uint256 remainingVaultRewards; // remaining rewards for this vault.        
-        uint256 totalVaultRewards; // amount of tokens to reward this vault.
     }
     
     IERC20 public token;
     VaultInfo public vault;
+    RewardInfo private _reward;
     mapping(address => uint256) private _balances;
 
     error NotAuthorized();
@@ -45,33 +49,35 @@ contract TicketVault is Context, Ownable, Fees {
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, uint256 amount, uint256 rewards);
     event StakingStarted();
-    event StakingFinished(uint256 indexed stopTimestamp);
+    event StakingCompleted();
 
     /// @notice modifier checks that a user is staking.
+    /// @param account The account address to check.
     modifier isStakeholder(address account) {
         if (_balances[account] == 0) revert NotAuthorized();
         _;
     }
 
-    /// @notice modifier checks that contract is status collecting.
+    /// @notice modifier checks that contract is in status Collecting.
     modifier isCollecting() {
         if (vault.status != Status.Collecting) revert NotCollecting();
         _;
     }
 
-    /// @notice modifier checks that staking has status started.
+    /// @notice modifier checks that contract has status Staking.
     modifier isStaking() {
         if (vault.status != Status.Staking) revert NotStaking();
         _;
     }
 
-    /// @notice modifier checks that contract is status completed.
+    /// @notice modifier checks that contract has status Completed.
     modifier isCompleted() {
         if (vault.status != Status.Completed) revert NotCompleted();
         _;
     }
 
     /// @notice modifier checks for zero values.
+    /// @param amount The user amount to deposit in Wei.
     modifier noZeroValues(uint256 amount) {
         if (_msgSender() == address(0) || amount <= 0) revert NoZeroValues();
         _;
@@ -79,86 +85,107 @@ contract TicketVault is Context, Ownable, Fees {
 
     /// @notice modifier sets a max limit to 1 million tokens staked per user.
     modifier limiter(uint256 amount) {
-        if (_balances[_msgSender()] > 0){
-            uint256 staking = (_balances[_msgSender()] += amount);
-            if (staking > 1000000e18) revert MaxStaked();
-        }
+        uint256 balance = _balances[_msgSender()];
+        uint256 totalBalance = balance + amount;
+        if (totalBalance >= 1000000000000000000000000) revert MaxStaked();
         _;
     }
 
-    constructor(
-        IERC20 _token
-    ) {
-        token = _token;
-        feeAddress = 0x0B818e6e9Bf4c87f437FF84F6aabecB728398b51;
-        vault.stakingPeriod = 13 weeks;
-        withdrawFeePeriod = 13 weeks; // 3 months fee period 
-        withdrawPenaltyPeriod = 2 weeks; // 14 days penalty period
-        vault.status = Status.Collecting;
+    /// @notice modifier updates the vault reward stats.
+    modifier updateVaultRewards() {
+        require(_reward.remainingVaultRewards > 0);
+        
+        uint256 _currentValue = _reward.rewardRate * (block.timestamp - _reward.lastRewardUpdateTimeStamp);
+        _reward.pendingVaultRewards += _currentValue;
+        _reward.remainingVaultRewards -= _currentValue;
+        _reward.lastRewardUpdateTimeStamp = block.timestamp;
+        _;
     }
+
+    /// @notice Constructor for TicketVault, staking contract.
+    /// @param Token The token used for staking.
+    constructor(
+        address Token
+    ) {
+        token = IERC20(Token);
+        feeAddress = _msgSender();
+        vault.stakingPeriod = 13 weeks; // 3 months staking period.
+        withdrawFeePeriod = vault.stakingPeriod; // 3 months fee period.
+        withdrawPenaltyPeriod = 2 weeks; // 2 weeks penalty period.
+        withdrawFee = 700; // 7% withdraw fee.
+        vault.status = Status.Collecting; 
+    }   
 
     /// @notice receive function reverts and returns the funds to the sender.
     receive() external payable {
         revert("not payable receive");
     }
 
-    function getPendingVaultRewards() public isStaking {
-        uint256 _currentRewards = vault.rewardRate * (block.timestamp - vault.lastRewardUpdateTimeStamp);
-        vault.remainingVaultRewards -= _currentRewards;
-        vault.pendingVaultRewards += _currentRewards;
-        vault.lastRewardUpdateTimeStamp = block.timestamp;
-    }
+/// ------------------------------- PUBLIC METHODS -------------------------------
 
-    function balance(address account) external view returns (uint256) {
+    /// Method to get the users erc20 balance.
+    /// @param account The account of the user to check.
+    /// @return user erc20 balance.
+    function getAccountErc20Balance(address account) external view returns (uint256) {
         return token.balanceOf(account);
     }
 
-    function userBalance(address account) external view returns (uint256) {
+    /// Method to get the users vault balance.
+    /// @param account The account of the user to check.
+    /// @return user balance staked in vault.
+    function getAccountVaultBalance(address account) external view returns (uint256) {
         return _balances[account];
     }
 
-    /// @notice Add reward amount to the vault.
-    /// @param amount The amount to deposit in Wei.
-    /// @dev Restricted to onlyOwner.  
-    function addRewards(uint256 amount) external onlyOwner {
-        vault.totalVaultRewards += amount;
-        vault.remainingVaultRewards += amount;
-        vault.rewardRate = (vault.totalVaultRewards / vault.stakingPeriod);
-        if (!_deposit(_msgSender(), amount)) revert AddRewardsFailed();
+    /// Method to get the vaults RewardInfo.
+    function getRewardInfo() external view returns (
+        uint256 lastRewardUpdateTimeStamp,
+        uint256 rewardRate, 
+        uint256 pendingVaultRewards,
+        uint256 claimedVaultRewards, 
+        uint256 remainingVaultRewards
+    ) {
+        return (
+            _reward.lastRewardUpdateTimeStamp,
+            _reward.rewardRate,
+            _reward.pendingVaultRewards,
+            _reward.claimedVaultRewards,
+            _reward.remainingVaultRewards);
     }
 
-    /// @notice Deposit funds into vault.
-    /// @param amount The amount to deposit.
+    /// @notice Method to let a user deposit funds into the vault.
+    /// @param amount The amount to be staked.
     function deposit(uint256 amount) external isCollecting limiter(amount) noZeroValues(amount) {
         _balances[_msgSender()] += amount;
         vault.totalVaultShares += amount;
-        
         if (!_deposit(_msgSender(), amount)) revert DepositFailed();
         emit Deposit(_msgSender(), amount);
     }
     
-    /// @notice Exit users funds from vault while collecting. ATT. 7% early withdraw fee.
-    function exitCollecting() external isStakeholder(_msgSender()) isCollecting {
+    /// @notice Lets a user exit their position while status is Collecting. 
+    /// @notice ATT. The user is subject to an 7% early withdraw fee.
+    /// @dev Can only be executed while status is Collecting.
+    function exitWhileCollecting() external isStakeholder(_msgSender()) isCollecting {
         require(_msgSender() != address(0), "Not zero address");
 
         uint256 _totalUserShares = _balances[_msgSender()];
         delete _balances[_msgSender()];
 
         (uint256 _feeAmount, uint256 _withdrawAmount) = super._calculateFee(_totalUserShares);
+        vault.totalVaultShares -= _totalUserShares;
         
         // Pay 7% withdrawFee before withdraw.
         if (!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
         if (!_withdraw(address(_msgSender()), _withdrawAmount)) revert WithdrawFailed();
         
-        vault.totalVaultShares -= _totalUserShares;
-
         emit ExitWithFees(_msgSender(), _withdrawAmount, _feeAmount);
     }
 
-    /// @notice Exit funds from vault while staking. ATT. 7% early withdraw fee.
-    function exitStaking() external isStakeholder(_msgSender()) isStaking  {
+    /// @notice Lets a user exit their position while staking. 
+    /// @notice ATT. The user is subject to an 7% early withdraw fee.
+    /// @dev Can only be executed while status is Staking.
+    function exitWhileStaking() external isStakeholder(_msgSender()) isStaking updateVaultRewards {
         require(_msgSender() != address(0), "Not zero address");
-        getPendingVaultRewards();
 
         uint256 _totalUserShares = _balances[_msgSender()];
         delete _balances[_msgSender()];
@@ -167,64 +194,78 @@ contract TicketVault is Context, Ownable, Fees {
 
         // if withdrawPenaltyPeriod is over, calculate user rewards.
         if (block.timestamp >= (vault.startTimestamp + withdrawPenaltyPeriod)) {
-            (, uint256 _pendingUserReward) = _calculateUserReward(_totalUserShares);
-
-            vault.remainingVaultRewards -= _pendingUserReward;
-            vault.pendingVaultRewards -= _pendingUserReward;
-            vault.claimedVaultRewards += _pendingUserReward;
+            uint256 _pendingUserReward = _calculateUserReward(_totalUserShares);
             _withdrawAmount += _pendingUserReward;
-        }
 
-        // Pay 7% withdrawFee before withdraw.
+            _reward.pendingVaultRewards -= _pendingUserReward;
+            _reward.remainingVaultRewards -= _pendingUserReward;
+            _reward.claimedVaultRewards += _pendingUserReward;
+        }
+        vault.totalVaultShares -= _totalUserShares;
+
+        // Pay 7% in withdrawFee before the withdraw is transacted.
         if (!_withdraw(address(feeAddress), _feeAmount)) revert ExitFeesFailed();
         if (!_withdraw(address(_msgSender()), _withdrawAmount)) revert WithdrawFailed();
-
-        vault.totalVaultShares -= _totalUserShares;
 
         emit ExitWithFees(_msgSender(), _withdrawAmount, _feeAmount);
     }
 
-    /// @notice Remove stake and rewards without extra fees.
+    /// @notice Let the user remove their stake and receive the accumulated rewards, without paying extra fees.
     function withdraw() external isStakeholder(_msgSender()) isCompleted {
         require(_msgSender() != address(0), "Not zero adress");
         
         uint256 _totalUserShares =  _balances[_msgSender()];
         delete _balances[_msgSender()];
     
-        (, uint256 _pendingUserReward) = _calculateUserReward(_totalUserShares);
+        uint256 _pendingUserReward = _calculateUserReward(_totalUserShares);
         
         if (!_withdraw(_msgSender(), _pendingUserReward)) revert RewardFailed();
         if (!_withdraw(_msgSender(), _totalUserShares)) revert WithdrawFailed();
         
-
-        vault.pendingVaultRewards -= _pendingUserReward;
-        vault.remainingVaultRewards -= _pendingUserReward;
-        vault.claimedVaultRewards += _pendingUserReward;
+        _reward.pendingVaultRewards -= _pendingUserReward;
+        _reward.claimedVaultRewards += _pendingUserReward;
         vault.totalVaultShares -= _totalUserShares;
 
         emit Withdraw(_msgSender(), _totalUserShares, _pendingUserReward);
     }
 
-    /// @notice Set the status to Started.
+/// ------------------------------- ADMIN METHODS -------------------------------
+
+    /// @notice Add reward amount to the vault.
+    /// @param amount The amount to deposit in Wei.
+    /// @dev Restricted to onlyOwner.  
+    function addRewards(uint256 amount) external onlyOwner {
+        if (!_deposit(_msgSender(), amount)) revert AddRewardsFailed();
+        
+        vault.totalVaultRewards += amount;
+        _reward.rewardRate = (vault.totalVaultRewards / vault.stakingPeriod);
+        _reward.remainingVaultRewards += amount;
+    }
+
+    /// @notice Sets the contract status to Staking.
     function startStaking() external isCollecting onlyOwner {
         vault.status = Status.Staking;
         vault.startTimestamp = block.timestamp;
-        vault.lastRewardUpdateTimeStamp = vault.startTimestamp;
         vault.stopTimestamp = vault.startTimestamp + vault.stakingPeriod;
+        _reward.lastRewardUpdateTimeStamp = vault.startTimestamp;
 
         emit StakingStarted();
     }
 
-    /// @notice Set the status to completed.
+    /// @notice Sets the contract status to Completed.
+    /// @dev modifier updateVaultRewards is called before status is set to Completed.
     function stopStaking() external isStaking onlyOwner {
         vault.status = Status.Completed;
-        vault.pendingVaultRewards += vault.remainingVaultRewards;
-        emit StakingFinished(vault.stopTimestamp);
+        _reward.pendingVaultRewards += _reward.remainingVaultRewards;
+        _reward.remainingVaultRewards = 0;
+        emit StakingCompleted();
     }
     
+/// ------------------------------- PRIVATE METHODS -------------------------------
+
     /// @notice Internal function to deposit funds to vault.
     /// @param _from The from address that deposits the funds.
-    /// @param _amount The amount to be deposited.
+    /// @param _amount The amount to be deposited in Wei.
     /// @return true if valid.
     function _deposit(address _from, uint256 _amount) private returns (bool) {
         token.safeTransferFrom(_from, address(this), _amount);
@@ -240,15 +281,15 @@ contract TicketVault is Context, Ownable, Fees {
         return true;
     }
 
-    function _calculateUserReward(uint256 _totalUserShares) internal view returns(
-        uint256, 
-        uint256
-    ) {
-        require(vault.pendingVaultRewards > 0, "No pending rewards");
+    /// @notice Internal function to calculate the pending user rewards.
+    /// @param _totalUserShares The total amount deposited to vault by user.
+    /// @return pending user reward amount.
+    function _calculateUserReward(uint256 _totalUserShares) private view returns (uint256) {
+        require(_reward.pendingVaultRewards > 0, "No pending rewards");
         
-        uint256 _userPercentOfVault = (_totalUserShares * 100) / vault.totalVaultShares;
-        uint256 _pendingUserReward = (vault.pendingVaultRewards * _userPercentOfVault) / 100;
+        uint256 _userPercentOfVault = _totalUserShares * 100 / vault.totalVaultShares;
+        uint256 _pendingUserReward = _reward.pendingVaultRewards * _userPercentOfVault / 100;
 
-        return (_userPercentOfVault, _pendingUserReward);
+        return _pendingUserReward;
     }
 }

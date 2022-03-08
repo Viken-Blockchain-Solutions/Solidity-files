@@ -9,8 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 
 contract TestERC20 is ERC20, ERC20Burnable, Ownable, ERC20Permit {
     constructor() ERC20("TestERC20", "TESTTOKEN") ERC20Permit("TestERC20") {
-        address owner = msg.sender;
-        mint(owner, 1000000000000000000000000000);
+        mint(msg.sender, 1000000000000000000000000000);
     }
 
     function mint(address to, uint256 amount) public onlyOwner {
