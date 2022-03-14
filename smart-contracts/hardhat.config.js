@@ -35,7 +35,7 @@ module.exports = {
   },
   spdxLicenseIdentifier: {
     overwrite: false,
-    runOnCompile: true,
+    runOnCompile: false,
   },
   defaultNetwork: "hardhat",
   networks: {
