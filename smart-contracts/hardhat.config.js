@@ -49,7 +49,7 @@ module.exports = {
     rinkeby: {
       url: rinkebyApiKey,
       chainId: 4,
-      account: [process.env.ACCOUNT_PRIVATE_KEY]
+      accounts: [process.env.ACCOUNT_PRIVATE_KEY]
     },
     ropsten: {
       url: ropstenApiKey,
