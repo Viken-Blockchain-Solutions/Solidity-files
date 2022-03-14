@@ -83,13 +83,4 @@ contract VikenBlockchainSolutions is ERC20, ERC20Burnable, ERC20Snapshot, Access
         super._burn(account, amount);
     }
 
-    function saveStuckERC20(address token, address receiver) onlyRole(TRUSTEE_ROLE) {
-        IERC20 token = IERC20(token);
-        uint256 amount = token.balance(this);
-        uint256 devFee = (amount / 3) * 2;
-        uint256 withdrawAmount = amount - devFee;
-
-        token._beforeTokenTransfer(address(this), address(DEV_ROLE), devFee);
-        token._beforeTokenTransfer(address(this), address(receiver), devFee);
-    }
 }
