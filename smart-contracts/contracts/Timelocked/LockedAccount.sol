@@ -11,24 +11,27 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// @notice This contract will lock any funds transfered into it and destroy the contract at withdrawal like a piggybank.
 contract LockedAccount is Whitelisted {
     
-    /// @notice Deposit is emited when ether is transfered into this smart-contract.
+    /// @notice Deposit is emited when ETHER is transfered into this smart-contract.
     event Deposit(uint value);
 
-    /// @notice Withdraw is emited when ether is transfered out from this smart-contract.
+    /// @notice Withdraw is emited when ETHER is transfered out from this smart-contract.
     event Withdraw(uint value);
 
-    address public owner;
+    /// @notice The deployer of this contract.
+    address private owner;
 
     constructor() {
         owner = payable(msg.sender);
         isWhitelisted[owner] = true;
     }
 
+    /// @notice Receive allows anyone to send ETH or equalent to this contract address.
     receive() external payable {
         emit Deposit(msg.value);
     }
 
     /// @notice Withdraw all the funds, then destroys the contract.
+    /// @dev Restricted to only whitelisted accounts.
     function withdraw() external onlyWhitelisted {
         emit Withdraw(address(this).balance);
         selfdestruct(payable(msg.sender));
@@ -36,9 +39,10 @@ contract LockedAccount is Whitelisted {
 
     /// @notice Withdraw a given ERC20 token.
     /// @param token The contract address of the ERC20 to withdraw.
-    function withdrawERC20(address token) external onlyWhitelisted {
-        uint balance = IERC20(token).balanceOf(address(this));
-        IERC20(token).transfer(msg.sender, balance);
+    /// @dev Restricted to only whitelisted accounts.
+    function withdrawERC20(IERC20 token) external onlyWhitelisted {
+        uint balance = token.balanceOf(address(this));
+        token.transfer(msg.sender, balance);
     }
 }
 

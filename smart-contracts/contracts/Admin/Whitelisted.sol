@@ -10,6 +10,8 @@ contract Whitelisted {
     /// @notice Mapping takes an address and returns true if whitelisted.
     mapping(address => bool) internal isWhitelisted;
     
+    address[] private list;
+
     /// @notice Error: Not authorized.
     /// @dev Error codes are described in the documentation.
     error Code_1();
@@ -24,7 +26,14 @@ contract Whitelisted {
     /// @param account The address to whitelist.
     /// @dev Call restricted to only whitelisted addresses.
     function addToWhitelist(address account) external onlyWhitelisted {
-        isWhitelisted[account] = true;
+        isWhitelisted[payable(address(account))] = true;
+        list.push(account);
+    }
+
+    /// @notice Return the whitelist
+    /// @dev Call restricted to only whitelisted addresses.
+    function getList() external view onlyWhitelisted returns (address[] memory){
+        return list;
     }
 
 }
