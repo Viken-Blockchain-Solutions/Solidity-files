@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "./../Admin/Whitelisted.sol";
+import "./Whitelisted.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 

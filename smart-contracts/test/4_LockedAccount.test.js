@@ -26,6 +26,7 @@ describe("LockedAccount", function () {
   });
   
   it("should be deployed by the Owner address", async function () {
+    
     console.log(await locked.connect(owner).getList());
 
   });

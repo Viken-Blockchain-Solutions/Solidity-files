@@ -12,7 +12,8 @@ const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
 const polyScanApiKey = process.env.POLYSCAN_API_KEY;
 const rinkebyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
 const mumbaiApiKey = process.env.ALCHEMY_APIKEY_MUMBAI;
-const ropstenApiKey = 'https://eth-ropsten.alchemyapi.io/v2/OLv9cT3ZinE2oSLcCo5zBPi7ZamWBkNN';
+const mainApiKey = process.env.ALCHEMY_APIKEY_MAIN;
+const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -45,6 +46,11 @@ module.exports = {
       url: "http://127.0.0.1:8545",
       gasLimit: 6000000000,
       defaultBalanceEther: 10,
+    },
+    rinkeby: {
+      url: mainApiKey,
+      chainId: 1,
+      accounts: [process.env.ACCOUNT_PRIVATE_KEY]
     },
     rinkeby: {
       url: rinkebyApiKey,
