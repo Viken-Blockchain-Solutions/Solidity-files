@@ -8,6 +8,8 @@ async function main() {
   const Erc20Proxy = await ethers.getContractFactory("ERC20Proxy");
   const Ticket = await ethers.getContractFactory("TicketVault");
   const Locked = await ethers.getContractFactory("LockedAccount");
+  const Erc721 = await ethers.getContractFactory("MintableERC721");
+  const Erc1155 = await ethers.getContractFactory("MintableERC1155");
 
   // Deploy smart-contracts
   const testerc20 = await TestToken_contract.deploy();
@@ -17,6 +19,9 @@ async function main() {
   const ticket = await Ticket.deploy(testerc20.address);
   const erc20Proxy = await Erc20Proxy.deploy();
   const batch = await Batch.deploy(erc20Proxy.address);
+
+  const erc721 = await Erc721.deploy("CryptoKozo", "KOZO");
+  const erc1155 = await Erc1155.deploy("https://japan-nft.com/erc1155/tokenId/1");
 
   console.log(`
     -------------------------------------------------------------------------------------------------------------------------
@@ -29,9 +34,11 @@ async function main() {
     |       BatchPayments   :           ${batch.address},         
     |       TicketVault     :           ${ticket.address},         
     |       Trustfund       :           ${trust.address},
-    |       LockedAccount   :           ${locked.address}             
-    |                                                                  
-    |    Client Contracts              
+    |       LockedAccount   :           ${locked.address},
+    |       mintableERC721  :           ${erc721.address},           
+    |       mintableERC1155 :           ${erc1155.address},           
+    |
+    |    Client Contracts
     |       ERC20Proxy      :           ${erc20Proxy.address}
     -------------------------------------------------------------------------------------------------------------------------
   `);

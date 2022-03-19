@@ -20,14 +20,26 @@ const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;
  */
 module.exports = {
   solidity: {
-    version: "0.8.11",
-    version: "0.8.12",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200
+    compilers: [
+      // {
+      //   version: "0.6.7",
+      //   settings: {
+      //     optimizer: {
+      //       enabled: true,
+      //       runs: 200
+      //     }
+      //   } 
+      // },
+      {
+        version: "0.8.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        } 
       }
-    }
+    ],
   },
   docgen: {
     path: './docs',
@@ -78,6 +90,23 @@ module.exports = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0, // default network
+      "mumbai": process.env.ACCOUNT_PRIVATE_KEY, // mumbai network, from env.MAINNET_PRIV
+      "rinkeby": process.env.ACCOUNT_PRIVATE_KEY,
+      "ropsten": process.env.ACCOUNT_PRIVATE_KEY,
+    },
+    admin: {
+      default: 1,
+    },
+    alice: {
+      default: 2,
+    },
+    bob:{
+      default:3,
+    }
   },
   mocha: {
     timeout: 20000
