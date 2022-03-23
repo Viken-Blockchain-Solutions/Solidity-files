@@ -91,23 +91,6 @@ module.exports = {
     cache: "./cache",
     artifacts: "./artifacts"
   },
-  namedAccounts: {
-    deployer: {
-      default: 0, // default network
-      "mumbai": process.env.ACCOUNT_PRIVATE_KEY, // mumbai network, from env.MAINNET_PRIV
-      "rinkeby": process.env.ACCOUNT_PRIVATE_KEY,
-      "ropsten": process.env.ACCOUNT_PRIVATE_KEY,
-    },
-    admin: {
-      default: 1,
-    },
-    alice: {
-      default: 2,
-    },
-    bob:{
-      default:3,
-    }
-  },
   mocha: {
     timeout: 20000
   },
