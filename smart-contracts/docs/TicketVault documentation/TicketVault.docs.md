@@ -142,6 +142,7 @@ _Description of the code in TicketVault.sol._
   * `totalVaultRewards`
     * The total amount of tokens to be used as rewards for staking.
 * **RewardInfo**
+  
   * `lastRewardUpdateTimeStamp`
     * Is set every time the `pendingVaultRewards` is calculated.
   * `rewardRate`
@@ -287,11 +288,7 @@ _Private methods are only visible internal and can only be called by this contra
     * Calculates the fee amount to pay to fee address.
     * Called by `exitWhileStaking()`, and `exitWhileCollecting()` to calculate the fee amount.
     * Calculation:
-
-    `feeAmount = _amount * withdrawFee / 10000;`
-* ```
-  withdrawAmount = _amount - feeAmount; 
-  ```
-
-```js
-```
+      ```js
+      feeAmount = _amount * withdrawFee / 10000;
+      withdrawAmount = _amount - feeAmount; 
+      ```
