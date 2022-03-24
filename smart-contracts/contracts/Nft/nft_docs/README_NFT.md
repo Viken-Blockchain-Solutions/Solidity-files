@@ -5,6 +5,7 @@
 ### Deployment on Mumbai Testnet
 
 - Deploying Marketplace with the account: 0x2fa005F3e5a5d35D431b7B8A1655d2CAc77f22AB
+
 ```bash
 ----------------------------------------------------------------------------------
 |    Deployment Status  :
@@ -15,9 +16,25 @@
 |       MarketPlace     :         0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
 ----------------------------------------------------------------------------------
 ```
+
+- Deploying VikenERC1155 with the account: 0x2fa005F3e5a5d35D431b7B8A1655d2CAc77f22AB
+
+```bash
+----------------------------------------------------------------------------------
+|    Deployment Status  :
+|       Contract owner  :         0x2fa005F3e5a5d35D431b7B8A1655d2CAc77f22AB
+|
+|  ------------------------------------------------------------------------------
+|   Contracts deployed  :
+|   Collection:
+|       VikenERC1155    :         0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72
+----------------------------------------------------------------------------------
+```
+
 ### Verification on Mumbai testnet
 
 - MarketPlace verified
+
 ```bash
 Compiling 1 file with 0.8.12
 Successully submitted source code for contract
@@ -26,4 +43,27 @@ for verification on Etherscan. Waiting for verification result...
 
 Successfully verified contract MarketPlace on Etherscan.
 https://mumbai.polygonscan.com/address/0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530#code
+```
+
+- VikenERC1155 verified
+
+```bash
+Compiling 1 file with 0.8.12
+Successfully submitted source code for contract
+contracts/Nft/MintableERC1155.sol:VikenERC1155 at 0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72
+for verification on Etherscan. Waiting for verification result...
+
+Successfully verified contract VikenERC1155 on Etherscan.
+https://mumbai.polygonscan.com/address/0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72#code
+```  
+
+### Dev-notes
+
+- Naming of the json filed with token metadata has to follow the ERC1155 standard which is:
+64 bytes padding. eks. `id 1` => `0000000000000000000000000000000000000000000000000000000000000001.json`.  
+
+- In the ERC1155 `constructor() ERC1155("ADD_URI_HERE")`, we add the URI to the .json files like below.  
+
+```js
+ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/VikenERC1155/{id}.json")
 ```
