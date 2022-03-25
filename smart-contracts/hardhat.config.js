@@ -12,6 +12,7 @@ const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
 const polyScanApiKey = process.env.POLYSCAN_API_KEY;
 const rinkebyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
 const mumbaiApiKey = process.env.ALCHEMY_APIKEY_MUMBAI;
+const polygonApiKey = process.env.ALCHEMY_APIKEY_POLYGON;
 const mainApiKey = process.env.ALCHEMY_APIKEY_MAIN;
 const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;
 
@@ -59,15 +60,15 @@ module.exports = {
       gasLimit: 6000000000,
       defaultBalanceEther: 10,
     },
-    rinkeby: {
+    mainnet: {
       url: mainApiKey,
       chainId: 1,
-      accounts: [process.env.ACCOUNT_PRIVATE_KEY]
+      accounts: [`${process.env.MAINNET_PRIVATE_KEY}`]
     },
     rinkeby: {
       url: rinkebyApiKey,
       chainId: 4,
-      accounts: [process.env.ACCOUNT_PRIVATE_KEY]
+      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`]
     },
     ropsten: {
       url: ropstenApiKey,
@@ -81,7 +82,7 @@ module.exports = {
     },
     polygon: {
       chainId:137,
-      url: mumbaiApiKey,
+      url: polygonApiKey,
       accounts: [`${process.env.MAINNET_PRIVATE_KEY}`]
     },
   },
@@ -95,10 +96,10 @@ module.exports = {
     timeout: 20000
   },
   etherscan: {
-    apiKey: etherScanApiKey,
+    apiKey: polyScanApiKey,
   },
   polyscan: {
-    apiKey: polyScanApiKey,
+    apiKey: etherScanApiKey,
   }
 };
 
