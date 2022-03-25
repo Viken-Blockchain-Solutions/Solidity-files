@@ -3,6 +3,7 @@ async function main() {
   const [deployer, admin] = await ethers.getSigners();
 
   // get smart-contracts.
+  const Whitelisted = await ethers.getContractFactory("Whitelisted");
   const TestToken_contract = await ethers.getContractFactory("TestERC20", deployer);
   const Trust_fund = await ethers.getContractFactory("ERC20TimeLockedTrustfund", deployer);
   const Ticket = await ethers.getContractFactory("TicketVault");
@@ -14,6 +15,7 @@ async function main() {
 
 
   // Deploy smart-contracts.
+  const whitelisted = await Whitelisted.deploy();
   const testerc20 = await TestToken_contract.deploy();
   const trust = await Trust_fund.deploy();
   const ticket = await Ticket.deploy(testerc20.address);
@@ -32,6 +34,7 @@ async function main() {
     |       Admin account     :           ${admin.address}
     |                   
     |    Contracts deployed   :                                                                  
+    |       Whitelisted       :           ${whitelisted.address},             
     |       TestERC20         :           ${testerc20.address},             
     |       BatchPayments     :           ${batch.address},         
     |       TicketVault       :           ${ticket.address},         

@@ -3,37 +3,48 @@ pragma solidity 0.8.12;
 
 /// @title Whitelisted.
 /// @author @Dadogg80.
-/// @notice This contract is used to whitelist addresses.
+/// @notice This contract is used to whitelist accounts.
 
 contract Whitelisted {
-
-    /// @notice Mapping takes an address and returns true if whitelisted.
+    
+    /// @dev Array with whitelisted accounts.
+    address[] private Whitelist;
+    
+    /// @dev Mapping takes an address and returns true if account is whitelisted.
     mapping(address => bool) internal isWhitelisted;
     
-    address[] private list;
-
     /// @notice Error: Not authorized.
     /// @dev Error codes are described in the documentation.
     error Code_1();
 
-    /// @notice Modifier used to check if caller is whitelisted. 
+    /// @dev Modifier used to check if msg.sender is whitelisted. 
     modifier onlyWhitelisted() {
         if (!isWhitelisted[msg.sender]) revert Code_1();
         _;
     }
 
-    /// @notice Whitelist an address.
-    /// @param account The address to whitelist.
-    /// @dev Call restricted to only whitelisted addresses.
-    function addToWhitelist(address account) external onlyWhitelisted {
-        isWhitelisted[payable(address(account))] = true;
-        list.push(account);
+    /// @dev Constructor whitelists the deployer account.
+    constructor() {
+        isWhitelisted[payable(address(msg.sender))] = true;
+        Whitelist.push(msg.sender);
     }
 
-    /// @notice Return the whitelist
-    /// @dev Call restricted to only whitelisted addresses.
-    function getList() external view onlyWhitelisted returns (address[] memory){
-        return list;
+    /// @notice Whitelist an account.
+    /// @param account The address of account to whitelist.
+    /// @dev Call restricted with onlyWhitelisted modifier.
+    /// @dev Only a whitelisted account, can add a new account to the whitelist.
+    function addToWhitelist(address account) external onlyWhitelisted {
+        isWhitelisted[payable(address(account))] = true;
+        Whitelist.push(account);
     }
+
+    /// @notice Return the array with whitelisted accounts.
+    /// @dev Can only be called by an whitelisted account.
+    function getList() external view returns (address[] memory){
+        if (!isWhitelisted[msg.sender]) revert Code_1();
+        return Whitelist;
+    }
+
+
 
 }

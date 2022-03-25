@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 ///      of what is already available on the blockchain network.
 
 
-contract Spread is Ownable{
+contract Spread is Ownable {
     using SafeERC20 for IERC20;
     
     /// @dev authentication error.
@@ -25,17 +25,17 @@ contract Spread is Ownable{
     constructor() {
     }
 
-    /// @notice Receive function.
+    /// @dev Receive function.
     receive() external payable {
         revert Error_2();
     } 
 
-    /// This will allow you to batch transfers of mainnet asset like Ethereum, to multiple accounts.
+    /// This will allow you to batch transfers of an mainnet asset like Ethereum, Matic, etc, to multiple accounts.
     /// @param recipients List with the recipient accounts.
     /// @param values List with the values to transfer to the corresponding recipient.
     /// @dev Address example: ["address","address","address"].
     /// @dev Value example: ["value","value","value"].
-    function spreadEther(address[] calldata recipients, uint256[] calldata values) external payable {
+    function spreadAsset(address[] calldata recipients, uint256[] calldata values) external payable {
             for (uint256 i = 0; i < recipients.length; i++)
                 payable(recipients[i]).transfer(values[i]);
     }
@@ -71,7 +71,7 @@ contract Spread is Ownable{
     /// @dev Restricted by onlyOwner modifier.
     function saveERC20(IERC20 token) external onlyOwner {
         uint256 amount = token.balanceOf(address(this));
-        token.transfer(address(msg.sender), amount);
+        require(token.transfer(address(msg.sender), amount));
     }
 
     /// This will allow the owner account to save any stuck main asset.
@@ -80,5 +80,4 @@ contract Spread is Ownable{
         uint256 asset = address(this).balance;
         payable(msg.sender).transfer(asset);
     }
-
 }

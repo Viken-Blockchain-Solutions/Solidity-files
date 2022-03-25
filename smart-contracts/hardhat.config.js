@@ -82,7 +82,7 @@ module.exports = {
     polygon: {
       chainId:137,
       url: mumbaiApiKey,
-      accounts: [`${process.env.ACCOUNT_PRIVATE_KEY}`]
+      accounts: [`${process.env.MAINNET_PRIVATE_KEY}`]
     },
   },
   paths: {
