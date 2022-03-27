@@ -1,11 +1,11 @@
 # Payment Smart-Contracts
 
-## Polygon Mainnet
+## **Ethereum mainnet**
 
-### Spread mainnet
+- Spread.sol: 0x588797504F98e3680d2FebB24e72536ddab4857A
 
-## Mumbai Testnet
+## **Polygon mainnet**
 
-### Spread testnet  
+- Spread.sol: 0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F
 
-- <https://mumbai.polygonscan.com/address/0xd60DB823Ce25c1f5b39B7A7F1eed0BC40f4ba9bf#code>
+

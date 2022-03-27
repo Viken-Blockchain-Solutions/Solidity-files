@@ -96,10 +96,10 @@ module.exports = {
     timeout: 20000
   },
   etherscan: {
-    apiKey: polyScanApiKey,
+    apiKey: etherScanApiKey,
   },
   polyscan: {
-    apiKey: etherScanApiKey,
+    apiKey: polyScanApiKey,
   }
 };
 

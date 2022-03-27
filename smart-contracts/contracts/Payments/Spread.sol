@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.12;
+pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
-/// @title Spread Dapp.
+/// @title Spread Dapp, Edition Ethereum.
 /// @author @dadogg80, Viken Blockchain Solutions.
 /// @notice Transfer your cryptocurrency to multiple accounts in one transaction.
 /// @dev The purpose of this smart-contract was to create an updated dapp
