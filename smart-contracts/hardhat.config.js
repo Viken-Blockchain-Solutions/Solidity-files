@@ -8,13 +8,18 @@ require("hardhat-docgen");
 require("hardhat-spdx-license-identifier");
 require("dotenv").config();
 
+
 const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
 const polyScanApiKey = process.env.POLYSCAN_API_KEY;
+
+// alchemy testnet nodes
+const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;
 const rinkebyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
 const mumbaiApiKey = process.env.ALCHEMY_APIKEY_MUMBAI;
+
+// alchemy testnet nodes
 const polygonApiKey = process.env.ALCHEMY_APIKEY_POLYGON;
 const mainApiKey = process.env.ALCHEMY_APIKEY_MAIN;
-const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
