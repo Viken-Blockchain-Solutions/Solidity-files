@@ -6,8 +6,11 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./Fees.sol";
- 
-contract TicketVault is Context, Ownable, Fees {
+
+// @title VikingVault.
+// @author @Dadogg80, Viken Blockchain Solutions
+
+contract VikingVault is Context, Ownable, Fees {
     using SafeERC20 for IERC20;
 
     /// @notice enum Status contains multiple status.
@@ -16,8 +19,8 @@ contract TicketVault is Context, Ownable, Fees {
     struct VaultInfo {
         Status status; // vault status
         uint256 stakingPeriod; // the timestamp length of staking vault.
-        uint256 startTimestamp;  // block.number when the vault start accouring rewards.
-        uint256 stopTimestamp; // the block.number to end the staking vault.
+        uint256 startTimestamp;  // block.timestamp when the vault start accouring rewards.
+        uint256 stopTimestamp; // the block.timestamp to end the staking vault.
         uint256 totalVaultShares; // total tokens deposited into Vault.
         uint256 totalVaultRewards; // amount of tokens to reward this vault.
     }
@@ -102,17 +105,17 @@ contract TicketVault is Context, Ownable, Fees {
         _;
     }
 
-    /// @notice Constructor for TicketVault, staking contract.
-    /// @param Token The token used for staking.
+    /// @notice Constructor for VikingVault, staking contract.
+    /// @param Token The token used for staking and rewards.
     constructor(
         address Token
     ) {
         token = IERC20(Token);
         feeAddress = _msgSender();
-        vault.stakingPeriod = 13 weeks; // 3 months staking period.
-        withdrawFeePeriod = vault.stakingPeriod; // 3 months fee period.
-        withdrawPenaltyPeriod = 2 weeks; // 2 weeks penalty period.
-        withdrawFee = 700; // 7% withdraw fee.
+    vault.stakingPeriod = 13 weeks;                 // 3 months staking period.
+        withdrawFeePeriod = vault.stakingPeriod;    // 3 months fee period.
+        withdrawPenaltyPeriod = 2 weeks;            // 2 weeks penalty period.
+        withdrawFee = 700;                          // 7% withdraw fee.
         vault.status = Status.Collecting; 
     }   
 
@@ -121,7 +124,7 @@ contract TicketVault is Context, Ownable, Fees {
         revert("not payable receive");
     }
 
-/// ------------------------------- PUBLIC METHODS -------------------------------
+/// ------------------------------- PUBLIC / EXTERNAL METHODS -------------------------------
 
     /// Method to get the users erc20 balance.
     /// @param account The account of the user to check.

@@ -11,7 +11,7 @@ const {
   expectRevert, // Assertions for transactions that should fail
 } = require("@openzeppelin/test-helpers");
 
-describe("TicketVault", function () {
+describe("VikingVault", function () {
   let vault, cent, owner, user1, user2, user3, user4, user5, user6, user7;
   let totReward, sevenT, sixT, fiveT, fourT, threeT;
   beforeEach(async function () {
@@ -27,7 +27,7 @@ describe("TicketVault", function () {
     threeT = new BN("300000000000000000000"); // 300
 
     TokenContract = await ethers.getContractFactory("TestERC20");
-    Contract = await ethers.getContractFactory("TicketVault");
+    Contract = await ethers.getContractFactory("VikingVault");
 
     // deploy contracts
     cent = await TokenContract.deploy();

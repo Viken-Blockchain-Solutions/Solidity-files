@@ -36,8 +36,10 @@
     "hardhat": "^2.8.0",
     "hardhat-docgen": "^1.3.0",
     "hardhat-spdx-license-identifier": "^2.0.3",
-    "web3": "^1.7.0",
-    "mocha": "^9.2.0"
+    "mocha": "^9.2.0",
+    "web3": "^1.7.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "moralis-admin-cli": "^2.1.16"
+  }
 }

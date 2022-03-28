@@ -26,7 +26,7 @@
 Compiling 1 file with 0.8.12
 Successully submitted source code for contract
 contracts/Nft/MarketPlace.sol:MarketPlace at 0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
-for verification on Etherscan. Waiting for verification result...
+for verification on Polygonnscan. Waiting for verification result...
 
 Successfully verified contract MarketPlace on Etherscan.
 https://mumbai.polygonscan.com/address/0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530#code
@@ -38,9 +38,9 @@ https://mumbai.polygonscan.com/address/0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E53
 Compiling 1 file with 0.8.12
 Successfully submitted source code for contract
 contracts/Nft/MintableERC1155.sol:VikenERC1155 at 0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72
-for verification on Etherscan. Waiting for verification result...
+for verification on Polygonscan. Waiting for verification result...
 
-Successfully verified contract VikenERC1155 on Etherscan.
+Successfully verified contract VikenERC1155 on Polygonscan.
 https://mumbai.polygonscan.com/address/0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72#code
 ```  
 
@@ -52,5 +52,5 @@ https://mumbai.polygonscan.com/address/0x82672Bc0dbd8Da8da20fCB8da31e26747E521A7
 - In the ERC1155 `constructor() ERC1155("ADD_URI_HERE")`, we add the URI to the .json files like below.  
 
 ```js
-ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/VikenERC1155/{id}.json")
+ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/ERC1155/{id}.json")
 ```

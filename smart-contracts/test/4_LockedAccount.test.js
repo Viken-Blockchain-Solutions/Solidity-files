@@ -25,8 +25,7 @@ describe("LockedAccount", function () {
     await locked.deployed();
   });
   
-  it("should be deployed by the Owner address", async function () {
-    
+  it("should add the Owner to the whitelist", async function () {
     console.log(await locked.connect(owner).getList());
 
   });

@@ -1,9 +1,9 @@
 async function main() {
     const [ deployer ]  = await ethers.getSigners();
     
-    console.log("Deploying VikenERC1155 with the account:", deployer.address);
+    console.log("Deploying MintableERC1155 with the account:", deployer.address);
    
-    const NFTContract = await ethers.getContractFactory("VikenERC1155");
+    const NFTContract = await ethers.getContractFactory("MintableERC1155");
   
     const erc1155 = await NFTContract.deploy();
   
@@ -17,7 +17,7 @@ async function main() {
         |  ------------------------------------------------------------------------------
         |   Contracts deployed  :
         |   Collection:
-        |       VikenERC1155    :         ${erc1155.address}
+        |     MintableERC1155   :         ${erc1155.address}
         ----------------------------------------------------------------------------------
     `); 
   }

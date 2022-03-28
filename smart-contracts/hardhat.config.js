@@ -9,7 +9,7 @@ require("hardhat-spdx-license-identifier");
 require("dotenv").config();
 
 const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
-const polyScanApiKey = process.env.POLYSCAN_API_KEY;
+const polyScanApiKey = process.env.POLYGONSCAN_API_KEY;
 const rinkebyApiKey = process.env.ALCHEMY_APIKEY_RINKEBY;
 const mumbaiApiKey = process.env.ALCHEMY_APIKEY_MUMBAI;
 const polygonApiKey = process.env.ALCHEMY_APIKEY_POLYGON;
