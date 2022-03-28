@@ -14,7 +14,7 @@ contract MintableERC1155 is ERC1155, AccessControl, Pausable, ERC1155Burnable, E
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
 
-    constructor() ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/ERC1155/{id}.json") {
+    constructor() ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/ERC1155/000000000000000000000000000000000000000000000000000000000000000{id}.json") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(URI_SETTER_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
