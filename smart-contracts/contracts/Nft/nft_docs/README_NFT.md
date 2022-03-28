@@ -9,25 +9,12 @@
 ```bash
 ----------------------------------------------------------------------------------
 |    Deployment Status  :
-|       Contract owner  :         0x2fa005F3e5a5d35D431b7B8A1655d2CAc77f22AB
+|       Contract owner  :           0x2fa005F3e5a5d35D431b7B8A1655d2CAc77f22AB
 |
 | ------------------------------------------------------------------------------
 |   Contracts deployed  :
-|       MarketPlace     :         0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
-----------------------------------------------------------------------------------
-```
-
-- Deploying VikenERC1155 with the account: 0x2fa005F3e5a5d35D431b7B8A1655d2CAc77f22AB
-
-```bash
-----------------------------------------------------------------------------------
-|    Deployment Status  :
-|       Contract owner  :         0x2fa005F3e5a5d35D431b7B8A1655d2CAc77f22AB
-|
-|  ------------------------------------------------------------------------------
-|   Contracts deployed  :
-|   Collection:
-|       VikenERC1155    :         0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72
+|       MarketPlace     :           0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
+|       MintableERC1155 :           0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72
 ----------------------------------------------------------------------------------
 ```
 

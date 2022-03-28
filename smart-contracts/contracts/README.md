@@ -1,8 +1,25 @@
-# contracts
+# Deployed Smart-Contracts
+
+Contract deployed  :  
+
+- Spread - Ethereum: **0x588797504F98e3680d2FebB24e72536ddab4857A**
+
+- Spread - Polygon:  **0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F**
+
+## **Mainnet Deployments**
+
+- Deployed **Spread.sol** smart-contracts with the account: **0x30824cB687E2768d239c84B69b242D4da9808D32**
+
+## **Mainnet Verified Contracts**
+
+- Successfully verified contract **Spread - edition ethereum** on Etherscan.
+Successfully verified contract Spread on Etherscan.
+<https://etherscan.io/address/0x588797504F98e3680d2FebB24e72536ddab4857A#code>
+
+- Successfully verified contract **Spread - edition polygon** on Polyscan.
+<https://polygonscan.com/address/0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F#code>
 
 ## Ropsten testnet
-contracts/Timelocked/LockedAccount.sol:LockedAccount at 0x7c422E427f0cB1afDBA7B16D7B3f11284982cCD2
-for verification on Etherscan. Waiting for verification result...
 
-Successfully verified contract LockedAccount on Etherscan.
-https://ropsten.etherscan.io/address/0x7c422E427f0cB1afDBA7B16D7B3f11284982cCD2#code
+Successfully verified contract **LockedAccount** on Etherscan.
+<https://ropsten.etherscan.io/address/0x7c422E427f0cB1afDBA7B16D7B3f11284982cCD2#code>  
