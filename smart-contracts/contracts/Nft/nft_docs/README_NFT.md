@@ -14,7 +14,7 @@
 | ------------------------------------------------------------------------------
 |   Contracts deployed  :
 |       MarketPlace     :           0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
-|       MintableERC1155 :           0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72
+|       MintableERC1155 :           0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b8397771
 ----------------------------------------------------------------------------------
 ```
 
@@ -37,11 +37,11 @@ https://mumbai.polygonscan.com/address/0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E53
 ```bash
 Compiling 1 file with 0.8.12
 Successfully submitted source code for contract
-contracts/Nft/MintableERC1155.sol:VikenERC1155 at 0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72
+contracts/Nft/MintableERC1155.sol:MintableERC1155 at 0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b8397771
 for verification on Polygonscan. Waiting for verification result...
 
-Successfully verified contract VikenERC1155 on Polygonscan.
-https://mumbai.polygonscan.com/address/0x82672Bc0dbd8Da8da20fCB8da31e26747E521A72#code
+Successfully verified contract MintableERC1155 on Polygonscan.
+https://mumbai.polygonscan.com/address/0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b8397771#code
 ```  
 
 ### Dev-notes
