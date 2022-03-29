@@ -58,5 +58,8 @@ https://mumbai.polygonscan.com/address/0xc1D0B9483dFC71137DC2E9c02c133160580873C
 - In the ERC1155 `constructor() ERC1155("ADD_URI_HERE")`, we add the URI to the .json files like below.  
 
 ```js
-ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/ERC1155/{id}.json")
+ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/ERC1155/000000000000000000000000000000000000000000000000000000000000000{id}.json")
+```
+```js
+ERC721("https://xoovbqyg7wwx.usemoralis.com/collection/ERC721/000000000000000000000000000000000000000000000000000000000000000{id}.json")
 ```
