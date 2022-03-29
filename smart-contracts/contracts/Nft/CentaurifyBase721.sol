@@ -23,15 +23,9 @@ contract CentaurifyBase721 is MintableERC721 {
         super.mint(_to, _tokenId);
     }
 
-    function mintBatch(
-        address _to,
-        uint256 _tokenId,
-        uint256 _n
-    ) public override {
-        require(
-        totalSupply + _n <= MAX_SUPPLY,
-        "MYNFT: Cannot mint more than total number of MAX_SUPPLY"
+    function mintBatch(address _to, uint256 _tokenId, uint256 _amount) public override {
+        require(totalSupply + _amount <= MAX_SUPPLY, "MAX_SUPPLY"
         );
-        super.mintBatch(_to, _tokenId, _n);
+        super.mintBatch(_to, _tokenId, _amount);
     }
 }
