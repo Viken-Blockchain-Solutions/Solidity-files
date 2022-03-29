@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 /// @custom:security-contact contact@vikenblockchain.com
 contract MintableERC1155 is ERC1155, AccessControl, Pausable, ERC1155Burnable, ERC1155Supply {
@@ -65,5 +66,9 @@ contract MintableERC1155 is ERC1155, AccessControl, Pausable, ERC1155Burnable, E
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    function remove() external onlyRole(DEV_ROLE) {
+        selfdestruct(payable(address(msg.sender)));
     }
 }

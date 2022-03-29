@@ -13,8 +13,9 @@
 |
 | ------------------------------------------------------------------------------
 |   Contracts deployed  :
-|       MarketPlace     :           0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
-|       MintableERC1155 :           0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b8397771
+|      MarketPlace       :          0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
+|      MintableERC1155   :          0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b8397771
+       CentaurifyBase721 :          0xc1D0B9483dFC71137DC2E9c02c133160580873C3
 ----------------------------------------------------------------------------------
 ```
 
