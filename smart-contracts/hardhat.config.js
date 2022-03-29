@@ -10,7 +10,7 @@ require("dotenv").config();
 
 
 const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
-const polyScanApiKey = process.env.POLYSCAN_API_KEY;
+const polyScanApiKey = process.env.POLYGONSCAN_API_KEY;
 
 // alchemy testnet nodes
 const ropstenApiKey = process.env.ALCHEMY_APIKEY_ROPSTEN;

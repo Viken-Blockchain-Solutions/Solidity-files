@@ -45,6 +45,11 @@ Successfully verified contract MintableERC1155 on Polygonscan.
 https://mumbai.polygonscan.com/address/0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b8397771#code
 ```  
 
+```bash
+Successfully verified contract CentaurifyBase721 on Etherscan.
+https://mumbai.polygonscan.com/address/0xc1D0B9483dFC71137DC2E9c02c133160580873C3#code
+```
+
 ### Dev-notes
 
 - Naming of the json filed with token metadata has to follow the ERC1155 standard which is:
