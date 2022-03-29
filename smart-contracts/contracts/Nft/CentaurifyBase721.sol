@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "./MintableERC721.sol";
+import "./MIntableERC721.sol";
 
 contract CentaurifyBase721 is MintableERC721 {
     uint256 public immutable MAX_SUPPLY;

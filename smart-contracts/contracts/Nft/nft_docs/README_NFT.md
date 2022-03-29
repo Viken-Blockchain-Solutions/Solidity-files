@@ -16,6 +16,7 @@
 |      MarketPlace       :          0x3A48ef4751C892c9Ab52c46E3a185CCb8d34E530
 |      MintableERC1155   :          0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b8397771
        CentaurifyBase721 :          0xc1D0B9483dFC71137DC2E9c02c133160580873C3
+       Centaurify-Team   :          0x7Ef3c5d31Ce5af8DDeBaC70091b03e248830ff3E
 ----------------------------------------------------------------------------------
 ```
 
@@ -46,8 +47,18 @@ https://mumbai.polygonscan.com/address/0xCc239Ccb940ae1045B8670d8Ffcd0Ff7b839777
 ```  
 
 ```bash
-Successfully verified contract CentaurifyBase721 on Etherscan.
+Successfully verified contract CentaurifyBase721 on Polygonscan.
 https://mumbai.polygonscan.com/address/0xc1D0B9483dFC71137DC2E9c02c133160580873C3#code
+```
+
+```bash
+Successfully verified contract CentaurifyBase721 on Polygonscan.
+https://mumbai.polygonscan.com/address/0xc1D0B9483dFC71137DC2E9c02c133160580873C3#code
+```
+
+```bash
+Successfully verified contract CentaurifyBase721 on Polygonscan.
+https://mumbai.polygonscan.com/address/0x7Ef3c5d31Ce5af8DDeBaC70091b03e248830ff3E#code
 ```
 
 ### Dev-notes

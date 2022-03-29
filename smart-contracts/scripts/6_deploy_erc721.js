@@ -5,7 +5,7 @@ async function main() {
    
     const NFTContract = await ethers.getContractFactory("CentaurifyBase721");
   
-    const erc721 = await NFTContract.deploy("Centaurify_test_erc721", "CENT_TEST_ERC721", 50);
+    const erc721 = await NFTContract.deploy("Centaurify-Team", "CENT_TEAM", 1000);
   
     await erc721.deployed();
   
