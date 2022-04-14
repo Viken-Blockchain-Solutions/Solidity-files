@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.12;
+
+pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "./interfaces/IMintableERC721.sol";
 
-contract MintableERC721 is ERC721, IMintableERC721, AccessControl, Ownable {
+contract CentaurifyBaseERC721 is ERC721, IMintableERC721, AccessControl {
     using Address for address;
     using Strings for uint256;
     
@@ -24,10 +22,10 @@ contract MintableERC721 is ERC721, IMintableERC721, AccessControl, Ownable {
     // Mapping from token ID to index of the owner tokens list
     mapping(uint256 => uint256) private _ownedTokensIndex;
 
-    constructor(string memory _name, string memory _symbol) ERC721(_name, _symbol) {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(MINTER_ROLE, msg.sender);
-        _setupRole(URI_MANAGER_ROLE, msg.sender);
+    constructor(string memory _name, string memory _symbol, address _owner) ERC721(_name, _symbol) {
+        _setupRole(DEFAULT_ADMIN_ROLE, _owner);
+        _setupRole(MINTER_ROLE, _owner);
+        _setupRole(URI_MANAGER_ROLE, _owner);
     }
 
     string internal theBaseURI = "";
@@ -194,12 +192,12 @@ contract MintableERC721 is ERC721, IMintableERC721, AccessControl, Ownable {
     /**
     * @dev See {IERC721Enumerable-tokenOfOwnerByIndex}.
     */
-    function tokenOfOwnerByIndex(address owner, uint256 index) public view virtual returns (uint256) {
+    function tokenOfOwnerByIndex(address _owner, uint256 index) public view virtual returns (uint256) {
         require(
-        index < ERC721.balanceOf(owner),
+        index < ERC721.balanceOf(_owner),
         "ERC721Enumerable: owner index out of bounds"
         );
-        return _ownedTokens[owner][index];
+        return _ownedTokens[_owner][index];
     }
 
     /**

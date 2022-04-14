@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.12;
+pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
-/// @custom:security-contact contact@vikenblockchain.com
-contract MintableERC1155 is ERC1155, AccessControl, Pausable, ERC1155Burnable, ERC1155Supply {
+/// @custom:security-contact security@centaurify.com
+contract CentaurifyBaseERC1155 is ERC1155, AccessControl, Pausable, ERC1155Burnable, ERC1155Supply {
     bytes32 public constant URI_SETTER_ROLE = keccak256("URI_SETTER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
 
-    constructor() ERC1155("https://xoovbqyg7wwx.usemoralis.com/collection/ERC1155/000000000000000000000000000000000000000000000000000000000000000{id}.json") {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(URI_SETTER_ROLE, msg.sender);
-        _grantRole(PAUSER_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
-        _grantRole(DEV_ROLE, msg.sender);
+
+    constructor(address _owner) ERC1155("") {
+        _grantRole(DEFAULT_ADMIN_ROLE, _owner);
+        _grantRole(URI_SETTER_ROLE, _owner);
+        _grantRole(PAUSER_ROLE, _owner);
+        _grantRole(MINTER_ROLE, _owner);
+        _grantRole(DEV_ROLE, _owner);
     }
 
     function setURI(string memory newuri) public onlyRole(URI_SETTER_ROLE) {
