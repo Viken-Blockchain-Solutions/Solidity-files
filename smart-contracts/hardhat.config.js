@@ -7,6 +7,8 @@ require("@nomiclabs/hardhat-ganache");
 require("hardhat-docgen");
 require("hardhat-spdx-license-identifier");
 require("dotenv").config();
+require("./scripts/deploy.js");
+require("./scripts/mint.js");
 
 
 const etherScanApiKey = process.env.ETHERSCAN_API_KEY;
@@ -27,17 +29,8 @@ const mainApiKey = process.env.ALCHEMY_APIKEY_MAIN;
 module.exports = {
   solidity: {
     compilers: [
-      // {
-      //   version: "0.6.7",
-      //   settings: {
-      //     optimizer: {
-      //       enabled: true,
-      //       runs: 200
-      //     }
-      //   } 
-      // },
       {
-        version: "0.8.12",
+        version: "0.8.13",
         settings: {
           optimizer: {
             enabled: true,
@@ -56,7 +49,7 @@ module.exports = {
     overwrite: false,
     runOnCompile: false,
   },
-  defaultNetwork: "hardhat",
+  defaultNetwork: "rinkeby",
   networks: {
     hardhat: {
     },
@@ -101,10 +94,10 @@ module.exports = {
     timeout: 20000
   },
   etherscan: {
-    apiKey: polyScanApiKey,
+    apiKey: etherScanApiKey,
   },
   polyscan: {
-    apiKey: etherScanApiKey,
+    apiKey: polyScanApiKey,
   }
 };
 
