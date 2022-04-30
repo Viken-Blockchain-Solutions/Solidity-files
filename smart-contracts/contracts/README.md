@@ -1,25 +1,29 @@
-# Deployed Smart-Contracts
+# DEPLOYED SMART-CONTRACTS
 
 Contract deployed  :  
 
-- Spread - Ethereum: **0x588797504F98e3680d2FebB24e72536ddab4857A**
+- Spread - Ethereum: **`0x588797504F98e3680d2FebB24e72536ddab4857A`**
 
-- Spread - Polygon:  **0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F**
+- Spread - Polygon:  **`0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F`**
 
-## **Mainnet Deployments**
+## **MAINNET DEPLOYMENTS**
 
-- Deployed **Spread.sol** smart-contracts with the account: **0x30824cB687E2768d239c84B69b242D4da9808D32**
+- Deployed **Spread.sol** smart-contracts with the account: 
+  - **`0x30824cB687E2768d239c84B69b242D4da9808D32`**
 
-## **Mainnet Verified Contracts**
+### **VERIFIED CONTRACTS**
 
 - Successfully verified contract **Spread - edition ethereum** on Etherscan.
-Successfully verified contract Spread on Etherscan.
-<https://etherscan.io/address/0x588797504F98e3680d2FebB24e72536ddab4857A#code>
+[Go to contract](<https://etherscan.io/address/0x588797504F98e3680d2FebB24e72536ddab4857A#code>)
 
 - Successfully verified contract **Spread - edition polygon** on Polyscan.
-<https://polygonscan.com/address/0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F#code>
+[Go to contract](<https://polygonscan.com/address/0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F#code>)
 
-## Ropsten testnet
+## **TESTNET DEPLOYMENTS**
 
-Successfully verified contract **LockedAccount** on Etherscan.
-<https://ropsten.etherscan.io/address/0x7c422E427f0cB1afDBA7B16D7B3f11284982cCD2#code>  
+- ROPSTEN TESTNET
+
+### **TESTNET VERIFIED CONTRACTS**
+
+Successfully verified contract **LockedAccount - edition ethereum** on Etherscan.
+[GO to contract](<https://ropsten.etherscan.io/address/0x7c422E427f0cB1afDBA7B16D7B3f11284982cCD2#code>)
