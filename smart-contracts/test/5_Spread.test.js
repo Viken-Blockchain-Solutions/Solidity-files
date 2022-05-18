@@ -3,7 +3,7 @@ const { expect } = require("chai");
 const { parseEther } = require("ethers/lib/utils");
 
     
-describe.only("Spread_dApp", function () {
+describe("Spread_dApp", function () {
     
     let owner, spender1, spender2, receiver1, receiver2, receiver3;
     let erc20_spender1, erc20_spender2, erc20;
