@@ -68,7 +68,7 @@ module.exports = {
     mainnet: {
       url: mainApiKey,
       chainId: 1,
-      accounts: [`${process.env.MAINNET_PRIVATE_KEY}`]
+      accounts: [`${process.env.VIKEN_DEPLOYER_PRIVATE_KEY}`]
     },
     rinkeby: {
       url: rinkebyApiKey,
@@ -88,7 +88,7 @@ module.exports = {
     polygon: {
       chainId:137,
       url: polygonApiKey,
-      accounts: [`${process.env.MAINNET_PRIVATE_KEY}`]
+      accounts: [`${process.env.VIKEN_DEPLOYER_PRIVATE_KEY}`]
     },
   },
   paths: {
