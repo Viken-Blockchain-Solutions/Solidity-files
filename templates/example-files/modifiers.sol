@@ -28,7 +28,7 @@ contract Modifers is Context, Ownable {
      * @notice Checks if the msg.sender is the admin address.
      */
     modifier onlyAdmin() {
-        if (_msgSender() == admin)
+        if (!_msgSender() == admin)
             revert OnlyAdmin();
         _;
     }

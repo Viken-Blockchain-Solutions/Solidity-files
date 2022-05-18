@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 
-contract Structs {
+contract CarStruct {
    
    // Structs are used to contain data.
 
