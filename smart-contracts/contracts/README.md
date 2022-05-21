@@ -2,7 +2,7 @@
 
 Contract deployed  :  
 
-- Spread - Ethereum: **0x588797504F98e3680d2FebB24e72536ddab4857A**
+- Spread - Ethereum: **0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F**
 
 - Spread - Polygon:  **0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F**
 
@@ -13,11 +13,10 @@ Contract deployed  :
 ## **Mainnet Verified Contracts**
 
 - Successfully verified contract **Spread - edition ethereum** on Etherscan.
-Successfully verified contract Spread on Etherscan.
-<https://etherscan.io/address/0x588797504F98e3680d2FebB24e72536ddab4857A#code>
+https://etherscan.io/address/0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F#code
 
 - Successfully verified contract **Spread - edition polygon** on Polyscan.
-<https://polygonscan.com/address/0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F#code>
+https://polygonscan.com/address/0x87945Ea3BDCe665461348EA8AfE0b07b0e4E121F#code
 
 ## Ropsten testnet
 
