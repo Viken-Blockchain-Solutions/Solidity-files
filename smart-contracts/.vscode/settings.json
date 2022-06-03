@@ -3,5 +3,7 @@
     "solidity-va.codelens.flatten.enable": false,
     "solidity-va.codelens.drawio.enable": true,
     "solidity-va.uml.actors.enable": true,
-    "solidity-va.debug.parser.showExceptions": true
+    "solidity-va.debug.parser.showExceptions": true,
+    "solidity-va.deco.statevars": false,
+    "solidity-va.tools.surya.option.negModifiers": true
 }
