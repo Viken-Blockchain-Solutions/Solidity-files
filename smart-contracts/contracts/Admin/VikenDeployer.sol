@@ -17,7 +17,7 @@ import '@openzeppelin/contracts/security/Pausable.sol';
  * for interesting new mechanisms known as 'counterfactual interactions'.
  */
 
-contract RequestDeployer is Ownable, Pausable {
+contract VikenDeployer is Ownable, Pausable {
     /**
      * @dev Deploys a contract using `CREATE2`. The address where the
      * contract will be deployed can be known in advance via {computeAddress}.

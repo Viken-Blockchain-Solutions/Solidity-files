@@ -5,6 +5,7 @@ require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-solhint");
 require("@nomiclabs/hardhat-ganache");
 require("hardhat-docgen");
+require("solidity-coverage");
 require("hardhat-spdx-license-identifier");
 require("dotenv").config();
 
@@ -27,15 +28,6 @@ const mainApiKey = process.env.ALCHEMY_APIKEY_MAIN;
 module.exports = {
   solidity: {
     compilers: [
-      // {
-      //   version: "0.6.7",
-      //   settings: {
-      //     optimizer: {
-      //       enabled: true,
-      //       runs: 200
-      //     }
-      //   } 
-      // },
       {
         version: "0.8.12",
         settings: {
@@ -48,9 +40,9 @@ module.exports = {
     ],
   },
   docgen: {
-    path: './docs',
+    path: './docs', 
     clear: true,
-    runOnCompile: false,
+    runOnCompile: true,
   },
   spdxLicenseIdentifier: {
     overwrite: false,
