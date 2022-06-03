@@ -19,7 +19,7 @@ import "erc721a/contracts/ERC721A.sol";
 
  contract New721Collection is ERC721A {
 
-    constructor() ERC721A("Bech Bunnies", "BECH_BUNNIES") {}
+    constructor() ERC721A("Input NAME", "INPUT TICKER") {}
 
     /// @notice Mint a set amount of new tokens.
     /// @param quantity the amount of new tokens to mint.
