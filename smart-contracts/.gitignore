@@ -6,3 +6,5 @@ cache/
 yarn.lock
 coverage/
 coverage.json
+
+docs/

@@ -36,7 +36,16 @@ module.exports = {
             runs: 200
           }
         } 
-      }
+      },
+      {
+        version: "0.8.14",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        } 
+      },
     ],
   },
   docgen: {
@@ -46,7 +55,7 @@ module.exports = {
   },
   spdxLicenseIdentifier: {
     overwrite: false,
-    runOnCompile: false,
+    runOnCompile: true,
   },
   defaultNetwork: "hardhat",
   networks: {
