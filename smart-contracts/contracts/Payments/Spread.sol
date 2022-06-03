@@ -20,7 +20,15 @@ contract Spread is Ownable {
     /// @dev thrown by receive function.
     error Error_2();
 
+    /// @dev thrown if zero values.
+    error ZeroValues();
+
     constructor() {
+    }
+
+    modifier noZeroValues(address[] calldata recipients, uint256[] calldata values) {
+      if (recipients.length <= 0 ||  values.length <= 0) revert ZeroValues();
+      _;
     }
 
     /// @dev Receive function.
@@ -33,7 +41,7 @@ contract Spread is Ownable {
     /// @param values List with the values to transfer to the corresponding recipient.
     /// @dev Address example: ["address","address","address"].
     /// @dev Value example: ["value","value","value"].
-    function spreadAsset(address[] calldata recipients, uint256[] calldata values) external payable {
+    function spreadAsset(address[] calldata recipients, uint256[] calldata values) external payable noZeroValues(recipients, values) {
             for (uint256 i = 0; i < recipients.length; i++)
                 payable(recipients[i]).transfer(values[i]);
     }
@@ -43,8 +51,8 @@ contract Spread is Ownable {
     /// @param recipients List with the recipient accounts.
     /// @param values List with values to transfer to the corresponding recipient.
     /// @dev Address example: ["address","address","address"].
-    /// @dev Value example: ["value","value","value"].
-    function spreadERC20(IERC20 token, address[] calldata recipients, uint256[] calldata values) external {
+    /// @dev Value example: [value,value,value].
+    function spreadERC20(IERC20 token, address[] calldata recipients, uint256[] calldata values) external noZeroValues(recipients, values) {
         uint256 total = 0;
         for (uint256 i = 0; i < recipients.length; i++)
             total += values[i];
@@ -53,13 +61,13 @@ contract Spread is Ownable {
             require(token.transfer(recipients[i], values[i]));
     }
 
-    /// This will allow you to batch transfers of erc20 tokens, to multiple accounts.
+    /// This is a cheaper way to batch transfer erc20 tokens, to multiple accounts.
     /// @param token The ERC20 contract address
     /// @param recipients List with the recipient accounts.
     /// @param values List with values to transfer to the corresponding recipient.
     /// @dev Address example: ["address","address","address"].
-    /// @dev Value example: ["value","value","value"].
-    function spreadERC20Simple(IERC20 token, address[] calldata recipients, uint256[] calldata values) external {
+    /// @dev Value example: [value, value, value].
+    function spreadERC20Simple(IERC20 token, address[] calldata recipients, uint256[] calldata values) external noZeroValues(recipients, values) {
         for (uint256 i = 0; i < recipients.length; i++)
             require(token.transferFrom(msg.sender, recipients[i], values[i]));
     }

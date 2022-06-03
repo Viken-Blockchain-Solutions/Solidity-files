@@ -5,6 +5,7 @@ require("@nomiclabs/hardhat-etherscan");
 require("@nomiclabs/hardhat-solhint");
 require("@nomiclabs/hardhat-ganache");
 require("hardhat-docgen");
+require("solidity-coverage");
 require("hardhat-spdx-license-identifier");
 require("dotenv").config();
 require("./scripts/deploy.js");
@@ -41,9 +42,9 @@ module.exports = {
     ],
   },
   docgen: {
-    path: './docs',
+    path: './docs', 
     clear: true,
-    runOnCompile: false,
+    runOnCompile: true,
   },
   spdxLicenseIdentifier: {
     overwrite: false,
@@ -61,7 +62,7 @@ module.exports = {
     mainnet: {
       url: mainApiKey,
       chainId: 1,
-      accounts: [`${process.env.MAINNET_PRIVATE_KEY}`]
+      accounts: [`${process.env.VIKEN_DEPLOYER_PRIVATE_KEY}`]
     },
     rinkeby: {
       url: rinkebyApiKey,
@@ -81,7 +82,7 @@ module.exports = {
     polygon: {
       chainId:137,
       url: polygonApiKey,
-      accounts: [`${process.env.MAINNET_PRIVATE_KEY}`]
+      accounts: [`${process.env.VIKEN_DEPLOYER_PRIVATE_KEY}`]
     },
   },
   paths: {

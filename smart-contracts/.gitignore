@@ -1,6 +1,8 @@
 # Node
-node_nodules
-artifacts
-cache
+node_modules
+artifacts/
+cache/
 .env
 yarn.lock
+coverage/
+coverage.json

@@ -1,2 +1,0 @@
-# TicketVault documentation
-
