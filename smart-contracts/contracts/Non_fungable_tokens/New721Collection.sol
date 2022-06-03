@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
@@ -18,22 +19,23 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  *
  * @dev    This contract contain custom methods and some improvments like:
  *         - Custom errors for error handling.
- *         - Supports ERC2981 - Royalty Standard.
+ *         - Supports ERC721Royalty - Royalty Standard.
  *         - Supports OpenSea by implementing { contractURI } method for handeling Royalties. 
  */
 /// @custom:security-contact security@vikenblockchain.com
-contract MyToken is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Burnable, Ownable {
+contract MyToken is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Burnable, ERC721Royalty, Ownable {
     using Counters for Counters.Counter;
 
     Counters.Counter private _tokenIdCounter;
-
-    constructor() ERC721("NAME", "TICKER") {}
+    string public contractURI = "https://ifwsu1awnie4.usemoralis.com/info.json";
+    
+    constructor(string memory name, string memory ticker) ERC721(name, ticker) {}
 
     function _baseURI() internal pure override returns (string memory) {
-        return "INSERT_URI_HERE";
+        return "https://ifwsu1awnie4.usemoralis.com/json/";
     }
 
-    function safeMint(address to, string memory uri) public onlyOwner {
+    function mint(address to, string memory uri) public onlyOwner {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
@@ -65,7 +67,7 @@ contract MyToken is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Burnable, 
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721Enumerable)
+        override(ERC721, ERC721Enumerable, ERC721Royalty)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
