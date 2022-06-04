@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.14;
+pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -19,12 +19,14 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  *         - Supports ERC721Royalty , built on ERC2981 Royalty Standard.
  *         - Supports OpenSea by implementing { contractURI } method for handeling Royalties. 
  */
+
 /// @custom:security-contact security@vikenblockchain.com
 contract New721Collection is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721Burnable, ERC721Royalty, Ownable {
     using Counters for Counters.Counter;
 
     Counters.Counter private _tokenIdCounter;
     
+    /// @notice Cost to mint.
     uint mintingFee = 0.5 ether;
 
     error LowAmount(uint required, uint sentValue);
@@ -32,6 +34,7 @@ contract New721Collection is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721B
     event DefaultRoyalty(address indexed royaltyReceiver, uint96 feeNumerator);
     event Mint(address indexed to, uint indexed tokenId, string uri);
 
+    /// @notice modifier checks the message value. 
     modifier costs {
         if (_msgSender() != super.owner()) {
             if (msg.value < mintingFee) {
@@ -44,11 +47,14 @@ contract New721Collection is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721B
         _;
     }
     
+    
     constructor(address royaltyReceiver, uint96 feeNumerator) ERC721("Test_Collection", "TEST_COLLECTION") {
         _setDefaultRoyalty(royaltyReceiver, feeNumerator);
         emit DefaultRoyalty(royaltyReceiver, feeNumerator);
     }
 
+    /// @notice Required to support OpenSea's royalty method.
+    /// @return String with the uri to the metadata json file.
     function contractURI() public pure returns (string memory) {
         return "https://ifwsu1awnie4.usemoralis.com/info.json";
     }
@@ -96,8 +102,17 @@ contract New721Collection is ERC721, ERC721Enumerable, ERC721URIStorage, ERC721B
         return super.supportsInterface(interfaceId);
     }
 
-    function withdraw() external onlyOwner returns(bool) {
-        uint256 balance = address(this).balance;
-        payable(address(owner())).transfer(balance);
+    /// @notice Restricted function! Only owner account.
+    /// @dev Method used by the owner account to withdraw the native balance from this smart contract.
+    function withdraw() external onlyOwner {
+        uint amount = address(this).balance;
+        payable(address(owner())).transfer(amount);
     }
+
+    /// @notice Restricted function!  Only owner account.
+    /// @dev Method will return the native balance of this smart contract.
+    function balance() external view onlyOwner returns(uint){
+        return address(this).balance;
+    }
+
 }
