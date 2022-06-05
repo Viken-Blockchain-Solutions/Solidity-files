@@ -17,7 +17,7 @@ import "erc721a/contracts/ERC721A.sol";
  *         - Supports OpenSea by implementing { contractURI } method for handeling Royalties. 
  */
 
- contract New721Collection is ERC721A {
+ contract New721aCollection is ERC721A {
 
     constructor() ERC721A("Input NAME", "INPUT TICKER") {}
 
