@@ -16,5 +16,21 @@ describe("RoyaltySplitter", function () {
           
         await royalty.deployed();
     });
+    describe('Admin features', function () {
+        
+        it("should print the related address for these tests.", async function () {
+            console.log(`
+                Test accounts:
+    
+                    Owner Account  :       ${owner.address},
+                    Payee1 Account :       ${payee1.address},
+                    Payee2 Account :       ${payee2.address},
+                    Payee3 Account :       ${payee3.address},
+                    Payee4 Account :       ${payee4.address},
+                    Payee5 Account :       ${payee5.address},
+                    Payee6 Account :       ${payee6.address}
+            `);
+        }); 
+    });
 
 });
