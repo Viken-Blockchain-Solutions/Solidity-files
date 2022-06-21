@@ -3,7 +3,7 @@ const { expect } = require("chai");
 const { parseEther } = require("ethers/lib/utils");
 
     
-describe.only("New721Collection", function () {
+describe("New721Collection", function () {
     const name = "test bunnies";
     const ticker = "TEST_BUNNIES";
     const feeNumerator = 1000;
