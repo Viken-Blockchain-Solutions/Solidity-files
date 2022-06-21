@@ -61,6 +61,8 @@ contract New721Collection is
         return "https://ifwsu1awnie4.usemoralis.com/json/";
     }
 
+    /// @notice Will mint a new NFT from the passed URI.
+    /// @param uri The location of the metadata.
     function mint(string memory uri) public onlyOwner {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();

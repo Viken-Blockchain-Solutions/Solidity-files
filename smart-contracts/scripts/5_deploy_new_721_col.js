@@ -1,7 +1,7 @@
 async function main() {
     const [ deployer, royaltyReceiver ]  = await ethers.getSigners();
-    const name = 'Test_Collection';
-    const ticker = 'TEST_COLLECTION';
+    const name = 'Test_BECH_Collection';
+    const ticker = 'TEST_BECH_COLLECTION';
 
     console.log("Deploying New721Collection contract with the deployer:", deployer.address);
    

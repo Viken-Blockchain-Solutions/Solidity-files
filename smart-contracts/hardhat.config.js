@@ -103,10 +103,8 @@ module.exports = {
   },
   etherscan: {
     apiKey: etherScanApiKey,
-  },
-  polyscan: {
     apiKey: polyScanApiKey,
-  }
+  },
 };
 
 // task action function receives the Hardhat Runtime Environment as second argument
