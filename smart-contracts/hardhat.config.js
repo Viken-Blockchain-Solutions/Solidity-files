@@ -103,6 +103,8 @@ module.exports = {
   },
   etherscan: {
     apiKey: etherScanApiKey,
+  },
+  polyscan: {
     apiKey: polyScanApiKey,
   },
 };
