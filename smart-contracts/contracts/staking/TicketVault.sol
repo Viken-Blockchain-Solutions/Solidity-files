@@ -287,8 +287,8 @@ contract TicketVault is Context, Ownable, Fees {
     function _calculateUserReward(uint256 _totalUserShares) private view returns (uint256) {
         require(_reward.pendingVaultRewards > 0, "No pending rewards");
         
-        uint256 _userPercentOfVault = _totalUserShares * 100 / vault.totalVaultShares;
-        uint256 _pendingUserReward = _reward.pendingVaultRewards * _userPercentOfVault / 100;
+        uint256 _userPercentOfVault = _totalUserShares * 10000 / vault.totalVaultShares;
+        uint256 _pendingUserReward = _reward.pendingVaultRewards * _userPercentOfVault / 10000;
 
         return _pendingUserReward;
     }
