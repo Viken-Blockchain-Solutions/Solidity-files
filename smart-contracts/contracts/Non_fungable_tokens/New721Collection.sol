@@ -42,11 +42,11 @@ contract New721Collection is
     /// @dev royaltyReciever The account that will receive royalty from secondary sales.
     /// @dev royaltyFee The percentage to claim as royalty in BIPS (1000 = 10%).
     constructor(
-        string memory name,
+        string memory _name,
         string memory ticker,
         address royaltyReceiver,
         uint96 feeNumerator
-    ) ERC721(name, ticker) {
+    ) ERC721(_name, ticker) {
         super._setDefaultRoyalty(royaltyReceiver, feeNumerator);
         emit DefaultRoyalty(royaltyReceiver, feeNumerator);
     }
