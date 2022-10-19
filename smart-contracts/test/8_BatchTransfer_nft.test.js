@@ -23,13 +23,24 @@ describe("Spread_dApp", function () {
         [ owner, spender1, spender2, receiver1, receiver2, receiver3 ] = await ethers.getSigners();
 
         const Batch = await ethers.getContractFactory("BatchTransferNft");
+        Token = await ethers.getContractFactory("TestERC20");
+        const Nft = await ethers.getContractFactory("MockNft");
         const batch = await Batch.deploy();
+        const nft = await Nft.deploy();
+        token = await Token.deploy();
 
         await batch.deployed();
+        await nft.deployed();
+        await token.deployed();
+        
 
-        const batch_owner = batch.connect(owner);
-        batch_spender1 = batch.connect(spender1);
-        batch_spender2 = batch.connect(spender2);
+        await token.connect(owner).mint(spender1.address, 1000000000000000000000000n);
+        await token.connect(owner).mint(spender2.address, 1000000000000000000000000n);
+        await token.connect(spender1).approve(batch.address, 1000000000000000000000000n);
+        await token.connect(spender2).approve(batch.address, 1000000000000000000000000n);
+    
+        before1 = await token.connect(spender1).balanceOf(spender1.address);
+        before2 = await token.connect(spender2).balanceOf(spender2.address);
 
     });
 
@@ -71,61 +82,8 @@ describe("Spread_dApp", function () {
         
         });
         
-        it("Should emit an event after calling the spreadbatch method.", async function () {
-            await batch_spender1.approve(spread.address, five_Ether);
-
-            let tx = await spread.connect(spender1).spreadbatch(
-                batch.address,
-                [receiver1.address, receiver2.address, receiver3.address], 
-                [amount_one, amount_three, amount_one]
-            );
-
-            expect(tx).to.emit(batch, 'Transfer');
+        it("Should emit an event after calling the spreadERC20 method.", async function () {
         });
-
-        it("Should emit an event after calling the spreadbatchSimple method.", async function () {
-            await batch_spender2.approve(spread.address, five_Ether);
-
-            let tx = await spread.connect(spender2).spreadbatchSimple(
-                batch.address,
-                [receiver1.address, receiver2.address, receiver3.address], 
-                [amount_one, amount_three, amount_one]
-            );
-
-            expect(tx).to.emit(batch, 'Transfer');
-        }); 
-    });
-
-    describe('Spread - Fail path', async function () {
-        beforeEach(async function () {
-            spread_spender1 = await spread.connect(spender1);
-            spread_spender2 = await spread.connect(spender2);
-        });
-        it('should revert if the address and values is missing when calling the spreadAsset method.', async function () {
-            await expect(spread_spender1.spreadAsset([], [], {value: ethers.constants.Zero}))
-                .to.be.reverted;
-        });
-        it('should revert if one of the address or values is missing when calling the spreadAsset method.', async function () {
-            await expect(spread_spender1.spreadAsset([receiver1.address], [], {value: amount_five}))
-                .to.be.reverted;
-        });
-        it('should revert if the ether value is to low', async function () {
-            await expect(spread_spender1.spreadAsset([receiver1.address], [amount_six], {value: amount_five}))
-                .to.be.reverted;
-        });
-        it('should revert if the approval is missing before the batch tansaction', async function () {
-            await expect(spread_spender2.spreadbatchSimple(batch.address, [receiver1.address], [amount_six]))
-                .to.be.reverted;
-        });
-        it('should revert if one of the address or values is missing when calling the spreadAsset method.', async function () {
-            await batch_spender2.approve(spread.address, amount_five);
-            await expect(spread_spender2.spreadbatch(batch.address, [], [amount_five]))
-                .to.be.reverted;
-        });
-        it('should revert if the user tries to pass zero arrays.', async function () {
-            await batch_spender2.approve(spread.address, amount_five);
-            await expect(spread_spender2.spreadbatch(batch, [], []))
-                .to.be.reverted;
-       });
+       
     });
 });    
