@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
-/// @title Spread Dapp, ERC721 Edition Ethereum.
+/// @title Spread NFT Dapp, ERC721 Edition Ethereum.
 /// @author @dadogg80, Viken Blockchain Solutions.
 /// @notice Transfer your NFT's to multiple accounts in one transaction.
 /// @dev The purpose of this smart-contract was to create an smart contract that would allow us to transfer a batch of ntf's to multiple accounts.
@@ -15,17 +14,19 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract BatchTransferNft is Ownable {
     
+    uint256 fee = 0.005 ether;
+
     /// @dev authentication error.
     error Error_1();
 
     /// @dev thrown by receive function.
     error Error_2();
-    error Error_3();
+
 
     /// @dev thrown if zero values.
     error ZeroValues();
+    error LowValue(string message);
 
-    event ApprovalSet(IERC721 collection);
     event TransferID(uint Id);
     
     constructor() {
@@ -41,21 +42,28 @@ contract BatchTransferNft is Ownable {
       _;
     }
 
+    modifier costs() {
+      if (msg.value < fee) revert LowValue("Add min 0.005 ether");
+      _;
+    }
+
     /// @dev Receive function.
     receive() external payable {
         revert Error_2();
     } 
 
-    /// This will allow you to batch transfers of an mainnet asset like Ethereum, Matic, etc, to multiple accounts.
+    /// This will allow you to batch transfer and send multiple nfts to multiple accounts.
     /// @param collection The collection to transfer from.
     /// @param recipients List with the recipient accounts.
-    /// @param ids List with the tokenIds to transfer to the corresponding recipient.
+    /// @param ids A List of lists, with the tokenIds to transfer to the corresponding recipient.
     /// @dev Address example: ["address","address","address"].
-    /// @dev Value example: [value,value,value].
+    /// @dev ids example: [[tokenId,tokenId][tokenId,tokenId],[tokenId,tokenId]].
+    /// @dev requires setApprovalForAll(operator, true)
     function spreadERC721(IERC721 collection, address[] calldata recipients, uint256[][] calldata ids) 
         external 
         payable 
-        noZeroValues(
+        costs()
+        noZeroValues(  
             recipients, 
             ids
         ) 
@@ -63,7 +71,7 @@ contract BatchTransferNft is Ownable {
         for (uint256 i = 0; i < recipients.length; i++) {
             uint256[] memory _ids = ids[i];
             for(uint256 k = 0; k < _ids.length; k++) {
-                collection.transferFrom(msg.sender, recipients[i], _ids[k]);
+                collection.safeTransferFrom(_msgSender(), recipients[i], _ids[k], "");
                 emit TransferID(_ids[k]);
             }
         }
@@ -79,7 +87,7 @@ contract BatchTransferNft is Ownable {
         uint256 total = 0;
         for (uint256 i = 0; i < recipients.length; i++)
             total += values[i];
-        token.transferFrom(msg.sender, address(this), total);
+        token.transferFrom(_msgSender(), address(this), total);
         for (uint256 i = 0; i < recipients.length; i++)
             require(token.transfer(recipients[i], values[i]));
     }
@@ -92,7 +100,7 @@ contract BatchTransferNft is Ownable {
     /// @dev Value example: [value, value, value].
     function spreadERC20Simple(IERC20 token, address[] calldata recipients, uint256[] calldata values) external noZeroValuesERC20(recipients, values) {
         for (uint256 i = 0; i < recipients.length; i++)
-            token.transferFrom(msg.sender, recipients[i], values[i]);
+            token.transferFrom(_msgSender(), recipients[i], values[i]);
     }
 
     /// This will allow the owner account to save any stuck erc20 tokens.
@@ -114,13 +122,13 @@ contract BatchTransferNft is Ownable {
     /// @dev Restricted by onlyOwner modifier.
     function saveERC20(IERC20 token) external onlyOwner {
         uint256 amount = token.balanceOf(address(this));
-        token.transfer(address(msg.sender), amount);
+        token.transfer(address(_msgSender()), amount);
     }
 
     /// This will allow the owner account to save any stuck main asset.
     /// @dev Restricted by onlyOwner modifier.
     function saveAsset() external onlyOwner {
         uint256 asset = address(this).balance;
-        payable(msg.sender).transfer(asset);
+        payable(_msgSender()).transfer(asset);
     }
 }
