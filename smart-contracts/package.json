@@ -14,7 +14,6 @@
     "test_mocha": "mocha --exit --recursive",
     "test": "npx hardhat run test --network localhost",
     "nodemon_watch": "nodemon --watch test/ --exec 'npx hardhat test'",
-    "ganache": "ganache-cli -m 'they caution recipe beauty force smile game family obvious include mean test'",
     "deploy_local": "npx hardhat run scripts/8_deploy_spread.js --network localhost",
     "deploy_rinkeby": "npx hardhat run scripts/  --network rinkeby"
   },
